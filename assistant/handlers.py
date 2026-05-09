@@ -8,9 +8,10 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 from assistant.config import Settings
 from assistant.services.agent import AgentService
 from assistant.services.tasks import TaskService
+from assistant.services.workspace_agent import WorkspaceAgentService
 from assistant.storage.sqlite import SQLiteStorage
 from assistant.telegram_utils import split_telegram_message
-from assistant.tools.workspace import WorkspaceTools
+from assistant.tools.workspace import CommandResult, WorkspaceTools
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +23,9 @@ def register_handlers(
     settings: Settings,
     storage: SQLiteStorage,
     agent_service: AgentService,
-    task_service: TaskService,
-    workspace_tools: WorkspaceTools,
+        task_service: TaskService,
+        workspace_agent_service: WorkspaceAgentService,
+        workspace_tools: WorkspaceTools,
 ) -> None:
     async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _ensure_authorized(update, settings):
@@ -31,7 +33,7 @@ def register_handlers(
         await update.message.reply_text(
             "Listo. Soy tu asistente personal.\n\n"
             "Comandos: /help, /mode, /plan, /approve, /cancel, /status, "
-            "/tasks, /reset, /files, /read, /search"
+            "/tasks, /reset, /workspace, /agent, /run, /write, /files, /read, /search"
         )
 
     async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -46,6 +48,10 @@ def register_handlers(
             "/status [id] - muestra estado de una tarea\n"
             "/tasks - lista tareas recientes\n"
             "/reset - borra memoria conversacional\n"
+            "/workspace - estado y bootstrap del workspace\n"
+            "/agent <objetivo> - ejecuta trabajo dentro del workspace\n"
+            "/run <comando> - ejecuta un comando dentro del workspace\n"
+            "/write <ruta> <contenido> - escribe un archivo dentro del workspace\n"
             "/files [ruta] - lista archivos del workspace\n"
             "/read <ruta> - lee un archivo del workspace\n"
             "/search <texto> [ruta] - busca texto en el workspace"
@@ -164,6 +170,105 @@ def register_handlers(
             {"query": query, "path": relative_path},
         )
 
+    async def workspace_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _ensure_authorized(update, settings):
+            return
+        try:
+            status = workspace_tools.status()
+            bootstrap = workspace_tools.bootstrap() if settings.workspace_write_enabled else ""
+            await _reply_long(update, settings, "\n\n".join(part for part in [status, bootstrap] if part))
+        except Exception:
+            logger.exception("Error preparando workspace")
+            await update.message.reply_text("No he podido preparar el workspace.")
+
+    async def write_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _ensure_authorized(update, settings):
+            return
+        payload = _command_payload(update, "write")
+        if not payload or " " not in payload:
+            await update.message.reply_text("Usa: /write <ruta> <contenido>")
+            return
+        relative_path, content = payload.split(" ", 1)
+        try:
+            output = workspace_tools.write_file(relative_path, content)
+            storage.record_tool_run(
+                telegram_user_id=update.effective_user.id,
+                tool_name="write_file",
+                status="success",
+                input_data={"path": relative_path},
+                output=output,
+            )
+            await update.message.reply_text(output)
+        except Exception:
+            logger.exception("Error escribiendo archivo en workspace")
+            storage.record_tool_run(
+                telegram_user_id=update.effective_user.id,
+                tool_name="write_file",
+                status="error",
+                input_data={"path": relative_path},
+                output="",
+            )
+            await update.message.reply_text("No he podido escribir ese archivo.")
+
+    async def run_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _ensure_authorized(update, settings):
+            return
+        command = _command_payload(update, "run")
+        if not command:
+            await update.message.reply_text("Usa: /run <comando>")
+            return
+        try:
+            await _typing(update, context)
+            result = workspace_tools.run_command(command)
+            output = _format_command_result(result)
+            storage.record_tool_run(
+                telegram_user_id=update.effective_user.id,
+                tool_name="run_command",
+                status="success" if result.exit_code == 0 else "error",
+                input_data={"command": command},
+                output=output,
+            )
+            await _reply_long(update, settings, output)
+        except Exception:
+            logger.exception("Error ejecutando comando en workspace")
+            storage.record_tool_run(
+                telegram_user_id=update.effective_user.id,
+                tool_name="run_command",
+                status="error",
+                input_data={"command": command},
+                output="",
+            )
+            await update.message.reply_text("No he podido ejecutar ese comando dentro del workspace.")
+
+    async def agent_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _ensure_authorized(update, settings):
+            return
+        objective = _command_payload(update, "agent")
+        if not objective:
+            await update.message.reply_text("Usa: /agent <objetivo>")
+            return
+        try:
+            await _typing(update, context)
+            output = workspace_agent_service.execute_objective(objective)
+            storage.record_tool_run(
+                telegram_user_id=update.effective_user.id,
+                tool_name="workspace_agent",
+                status="success",
+                input_data={"objective": objective},
+                output=output,
+            )
+            await _reply_long(update, settings, output)
+        except Exception:
+            logger.exception("Error ejecutando agente de workspace")
+            storage.record_tool_run(
+                telegram_user_id=update.effective_user.id,
+                tool_name="workspace_agent",
+                status="error",
+                input_data={"objective": objective},
+                output="",
+            )
+            await update.message.reply_text("No he podido completar ese trabajo dentro del workspace.")
+
     async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _ensure_authorized(update, settings):
             return
@@ -188,6 +293,10 @@ def register_handlers(
     application.add_handler(CommandHandler("cancel", cancel_command))
     application.add_handler(CommandHandler("status", status_command))
     application.add_handler(CommandHandler("tasks", tasks_command))
+    application.add_handler(CommandHandler("workspace", workspace_command))
+    application.add_handler(CommandHandler("agent", agent_command))
+    application.add_handler(CommandHandler("run", run_command))
+    application.add_handler(CommandHandler("write", write_command))
     application.add_handler(CommandHandler("files", files_command))
     application.add_handler(CommandHandler("read", read_command))
     application.add_handler(CommandHandler("search", search_command))
@@ -262,4 +371,24 @@ def _format_task(task: dict) -> str:
         f"Tarea #{task['id']} - {task['status']}\n"
         f"{task['title']}\n"
         f"Tipo: {task['kind']}"
+    )
+
+
+def _command_payload(update: Update, command_name: str) -> str:
+    text = update.message.text or ""
+    prefix = f"/{command_name}"
+    if not text.startswith(prefix):
+        return ""
+    return text[len(prefix) :].strip()
+
+
+def _format_command_result(result: CommandResult) -> str:
+    changed_files = "\n".join(f"- {path}" for path in result.changed_files) or "- Sin cambios detectados"
+    output = result.output or "Sin salida relevante."
+    return (
+        f"Comando ejecutado en workspace.\n\n"
+        f"Comando:\n{result.command}\n\n"
+        f"Resultado: exit code {result.exit_code}\n\n"
+        f"Ficheros tocados:\n{changed_files}\n\n"
+        f"Salida relevante:\n{output}"
     )

@@ -31,7 +31,10 @@ Variables principales:
 - `RATE_LIMIT_MESSAGES` y `RATE_LIMIT_WINDOW_SECONDS`: límite básico anti-spam.
 - `WORKSPACE_ROOT`: raíz permitida para herramientas de lectura.
 - `WORKSPACE_READ_ENABLED`: activa `/files`, `/read` y `/search`.
-- `WORKSPACE_WRITE_ENABLED`: reservado para futuras herramientas de escritura. Por defecto está desactivado.
+- `WORKSPACE_WRITE_ENABLED`: activa escritura controlada dentro del workspace.
+- `WORKSPACE_COMMAND_ENABLED`: activa ejecución de comandos dentro del workspace.
+- `WORKSPACE_COMMAND_TIMEOUT_SECONDS`: timeout de comandos del workspace.
+- `WORKSPACE_MAX_OUTPUT_CHARS`: salida máxima devuelta por comando.
 
 ## Arrancar
 
@@ -41,7 +44,7 @@ docker compose up -d --build
 
 SQLite se guarda en `./data`, montado como volumen en `/app/data`.
 
-Las herramientas `/files`, `/read` y `/search` leen desde `./workspace`, montado en solo lectura como `/app/workspace`. No pongas secretos en esa carpeta.
+Las herramientas de workspace usan `./workspace`, montado como `/app/workspace`. No pongas secretos en esa carpeta.
 
 ## Ver logs
 
@@ -83,12 +86,16 @@ En produccion, el archivo `.env` se crea manualmente en el VPS y nunca se sube a
 - `/status [id]`: muestra el estado de una tarea.
 - `/tasks`: lista tareas recientes.
 - `/reset`: borra memoria conversacional del usuario.
+- `/workspace`: muestra estado y crea `AGENTS.md`, `projects/` y `scratch/` si la escritura está activa.
+- `/agent <objetivo>`: pide a Claude que ejecute trabajo dentro del workspace y devuelve resumen de alto nivel.
+- `/run <comando>`: ejecuta un comando dentro del workspace.
+- `/write <ruta> <contenido>`: escribe un archivo dentro del workspace.
 - `/files [ruta]`: lista archivos dentro del workspace permitido.
 - `/read <ruta>`: lee un archivo del workspace permitido.
 - `/search <texto> [ruta]`: busca texto dentro del workspace permitido.
 
 ## Seguridad
 
-El bot falla cerrado si `ALLOWED_USER_IDS` está vacío o mal formado. Las herramientas de workspace solo leen dentro de `WORKSPACE_ROOT` y el volumen está montado en modo lectura en Docker Compose. El proyecto raíz no se monta como workspace para evitar exponer `.env`.
+El bot falla cerrado si `ALLOWED_USER_IDS` está vacío o mal formado. Las herramientas de workspace solo operan dentro de `WORKSPACE_ROOT`. El proyecto raíz no se monta como workspace para evitar exponer `.env`.
 
-Las herramientas de escritura, shell, Docker/VPS y deploy deben añadirse detrás de confirmaciones explícitas, allowlists y registro de auditoría.
+Los comandos de workspace se ejecutan con entorno saneado para no exponer tokens del bot. No hay shell de host ni acceso intencionado fuera de `/app/workspace`.

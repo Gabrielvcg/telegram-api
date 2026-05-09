@@ -29,7 +29,10 @@ Configure these environment variables:
 - `RATE_LIMIT_MESSAGES`: user rate limit count.
 - `RATE_LIMIT_WINDOW_SECONDS`: user rate limit window.
 - `WORKSPACE_READ_ENABLED`: usually `true`.
-- `WORKSPACE_WRITE_ENABLED`: usually `false`.
+- `WORKSPACE_WRITE_ENABLED`: usually `true` for the dedicated workspace.
+- `WORKSPACE_COMMAND_ENABLED`: usually `true` for workspace agent execution.
+- `WORKSPACE_COMMAND_TIMEOUT_SECONDS`: command timeout, for example `120`.
+- `WORKSPACE_MAX_OUTPUT_CHARS`: maximum command output returned to Telegram, for example `6000`.
 - `LOG_LEVEL`: usually `INFO`.
 
 Configure these environment secrets:

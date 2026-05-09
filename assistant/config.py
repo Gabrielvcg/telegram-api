@@ -28,6 +28,9 @@ class Settings:
     workspace_root: Path
     workspace_read_enabled: bool
     workspace_write_enabled: bool
+    workspace_command_enabled: bool
+    workspace_command_timeout_seconds: int
+    workspace_max_output_chars: int
     log_level: str
 
 
@@ -54,6 +57,9 @@ def load_settings() -> Settings:
         workspace_root=Path(os.getenv("WORKSPACE_ROOT", "/app/workspace")),
         workspace_read_enabled=_bool_env("WORKSPACE_READ_ENABLED", True),
         workspace_write_enabled=_bool_env("WORKSPACE_WRITE_ENABLED", False),
+        workspace_command_enabled=_bool_env("WORKSPACE_COMMAND_ENABLED", False),
+        workspace_command_timeout_seconds=_int_env("WORKSPACE_COMMAND_TIMEOUT_SECONDS", 120),
+        workspace_max_output_chars=_int_env("WORKSPACE_MAX_OUTPUT_CHARS", 6000),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
     )
 

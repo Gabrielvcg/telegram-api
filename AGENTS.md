@@ -71,7 +71,7 @@ Keep the assistant personality configurable through `SYSTEM_PROMPT`. Do not hard
 - `/reset` command to clear user memory.
 - `/mode normal` and `/mode plan`.
 - `/plan`, `/approve`, `/cancel`, `/status`, and `/tasks` for persistent task planning.
-- Read-only workspace tools through `/files`, `/read`, and `/search`.
+- Workspace tools through `/files`, `/read`, `/search`, `/workspace`, `/write`, `/run`, and `/agent`.
 - Basic rate limiting.
 - Docker volume for runtime data.
 - GitHub Actions CI workflow.
@@ -159,7 +159,8 @@ Candidate capabilities:
 - Fail closed when `ALLOWED_USER_IDS` is missing or malformed unless Gabriel explicitly asks for an open mode.
 - Treat Telegram input as untrusted.
 - Keep workspace tools scoped to `WORKSPACE_ROOT`.
-- Keep workspace writes disabled unless there is an explicit approval flow and patch review.
+- Keep workspace writes and commands scoped to `WORKSPACE_ROOT`.
+- Telegram responses for code changes should summarize touched files and high-level flow, not paste full patches.
 - Avoid adding shell/VPS control tools until authorization, logging, confirmation flows, and command allowlists are designed.
 - For future tool calling, require explicit boundaries around filesystem, shell, network, and infrastructure actions.
 

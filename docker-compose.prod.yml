@@ -10,7 +10,8 @@ services:
       DATABASE_PATH: /app/data/assistant.db
       WORKSPACE_ROOT: /app/workspace
       WORKSPACE_READ_ENABLED: "true"
-      WORKSPACE_WRITE_ENABLED: "false"
+      WORKSPACE_WRITE_ENABLED: "true"
+      WORKSPACE_COMMAND_ENABLED: "true"
     volumes:
       - ./data:/app/data
-      - ./workspace:/app/workspace:ro
+      - ./workspace:/app/workspace
