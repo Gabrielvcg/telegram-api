@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -271,6 +272,7 @@ class WorkspaceTools:
         self._require_write()
 
     def _validate_command(self, command: str) -> None:
+        command_to_scan = self._strip_heredoc_bodies(command)
         blocked_fragments = [
             "../",
             "..\\",
@@ -286,8 +288,31 @@ class WorkspaceTools:
             "C:\\",
             "docker.sock",
         ]
-        if any(fragment in command for fragment in blocked_fragments):
-            raise ValueError("Comando rechazado: referencia rutas fuera del workspace permitido.")
+        for fragment in blocked_fragments:
+            if fragment in command_to_scan:
+                raise ValueError(
+                    "Comando rechazado: referencia rutas fuera del workspace permitido "
+                    f"({fragment})."
+                )
+
+    def _strip_heredoc_bodies(self, command: str) -> str:
+        lines = command.splitlines()
+        output_lines = []
+        skip_until = None
+
+        for line in lines:
+            if skip_until is not None:
+                if line.strip() == skip_until:
+                    skip_until = None
+                    output_lines.append(line)
+                continue
+
+            output_lines.append(line)
+            match = re.search(r"<<-?\s*['\"]?([A-Za-z0-9_.-]+)['\"]?", line)
+            if match:
+                skip_until = match.group(1)
+
+        return "\n".join(output_lines)
 
     def _safe_env(self) -> dict[str, str]:
         allowed_names = {"PATH", "LANG", "LC_ALL", "HOME", "PYTHONPATH"}
