@@ -73,6 +73,7 @@ Keep the assistant personality configurable through `SYSTEM_PROMPT`. Do not hard
 - `/plan`, `/approve`, `/cancel`, `/status`, and `/tasks` for persistent task planning.
 - Workspace tools through `/files`, `/read`, `/search`, `/workspace`, `/write`, `/run`, `/agent`, and `/git`.
 - `/agent` multi-attempt execution with automatic repair context after failed workspace commands.
+- Controlled GitHub profiles for clone, branch push, and pull request creation without exposing tokens to Claude.
 - Basic rate limiting.
 - Docker volume for runtime data.
 - GitHub Actions CI workflow.
@@ -162,6 +163,7 @@ Candidate capabilities:
 - Treat Telegram input as untrusted.
 - Keep workspace tools scoped to `WORKSPACE_ROOT`.
 - Keep workspace writes and commands scoped to `WORKSPACE_ROOT`.
+- Keep GitHub tokens scoped through `PROJECT_<NAME>_*` profiles and never expose them to Claude prompts, command output, logs, or workspace files.
 - Telegram responses for code changes should summarize touched files and high-level flow, not paste full patches.
 - Workspace projects should live under `projects/<project-name>`.
 - Use `scratch/` only for temporary experiments and disposable checks.
@@ -170,6 +172,7 @@ Candidate capabilities:
 - If a workspace project is on `main` and the task changes files, create or switch to a feature branch before editing unless Gabriel explicitly asks otherwise.
 - For coherent workspace implementations that pass verification, local commits are acceptable and expected unless Gabriel asks not to commit.
 - Git operations must stay inside workspace project paths. Do not push automatically unless Gabriel explicitly asks for push/publish.
+- GitHub push/PR operations must use controlled project profiles and must not push from `main`/`master`.
 - Do not deploy, publish packages, configure external accounts, or use SSH keys from workspace automation unless Gabriel explicitly asks for that specific external action.
 - Avoid adding shell/VPS control tools until authorization, logging, confirmation flows, and command allowlists are designed.
 - For future tool calling, require explicit boundaries around filesystem, shell, network, and infrastructure actions.

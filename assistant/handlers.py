@@ -10,6 +10,7 @@ from assistant.services.agent import AgentService
 from assistant.services.tasks import TaskService
 from assistant.services.workspace_agent import WorkspaceAgentService
 from assistant.services.workspace_git import WorkspaceGitService
+from assistant.services.workspace_github import WorkspaceGitHubService
 from assistant.storage.sqlite import SQLiteStorage
 from assistant.telegram_utils import split_telegram_message
 from assistant.tools.workspace import CommandResult, WorkspaceTools
@@ -24,10 +25,11 @@ def register_handlers(
     settings: Settings,
     storage: SQLiteStorage,
     agent_service: AgentService,
-        task_service: TaskService,
-        workspace_agent_service: WorkspaceAgentService,
-        workspace_git_service: WorkspaceGitService,
-        workspace_tools: WorkspaceTools,
+    task_service: TaskService,
+    workspace_agent_service: WorkspaceAgentService,
+    workspace_git_service: WorkspaceGitService,
+    workspace_github_service: WorkspaceGitHubService,
+    workspace_tools: WorkspaceTools,
 ) -> None:
     async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _ensure_authorized(update, settings):
@@ -35,7 +37,7 @@ def register_handlers(
         await update.message.reply_text(
             "Listo. Soy tu asistente personal.\n\n"
             "Comandos: /help, /mode, /plan, /approve, /cancel, /status, "
-            "/tasks, /reset, /workspace, /agent, /git, /run, /write, /files, /read, /search"
+            "/tasks, /reset, /workspace, /agent, /git, /github, /run, /write, /files, /read, /search"
         )
 
     async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -53,6 +55,7 @@ def register_handlers(
             "/workspace - estado y bootstrap del workspace\n"
             "/agent <objetivo> - ejecuta trabajo dentro del workspace\n"
             "/git <proyecto> <acción> - gestiona Git dentro de un proyecto del workspace\n"
+            "/github <perfil> <acción> - clone/status/push-pr controlado por perfil GitHub\n"
             "/run <comando> - ejecuta un comando dentro del workspace\n"
             "/write <ruta> <contenido> - escribe un archivo dentro del workspace\n"
             "/files [ruta] - lista archivos del workspace\n"
@@ -305,6 +308,36 @@ def register_handlers(
             )
             await update.message.reply_text("No he podido ejecutar esa operación Git dentro del workspace.")
 
+    async def github_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _ensure_authorized(update, settings):
+            return
+        profile_name = context.args[0] if context.args else None
+        action = context.args[1] if len(context.args) >= 2 else ("list" if profile_name == "list" else None)
+        args = context.args[2:] if len(context.args) >= 2 else []
+        if profile_name == "list":
+            profile_name = None
+        try:
+            await _typing(update, context)
+            output = workspace_github_service.handle(profile_name, action, args)
+            storage.record_tool_run(
+                telegram_user_id=update.effective_user.id,
+                tool_name="workspace_github",
+                status="success",
+                input_data={"profile": profile_name, "action": action, "args": args},
+                output=output,
+            )
+            await _reply_long(update, settings, output)
+        except Exception:
+            logger.exception("Error ejecutando GitHub en workspace")
+            storage.record_tool_run(
+                telegram_user_id=update.effective_user.id,
+                tool_name="workspace_github",
+                status="error",
+                input_data={"profile": profile_name, "action": action, "args": args},
+                output="",
+            )
+            await update.message.reply_text("No he podido ejecutar esa operación GitHub dentro del workspace.")
+
     async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _ensure_authorized(update, settings):
             return
@@ -332,6 +365,7 @@ def register_handlers(
     application.add_handler(CommandHandler("workspace", workspace_command))
     application.add_handler(CommandHandler("agent", agent_command))
     application.add_handler(CommandHandler("git", git_command))
+    application.add_handler(CommandHandler("github", github_command))
     application.add_handler(CommandHandler("run", run_command))
     application.add_handler(CommandHandler("write", write_command))
     application.add_handler(CommandHandler("files", files_command))

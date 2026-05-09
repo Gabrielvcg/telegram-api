@@ -36,6 +36,8 @@ Variables principales:
 - `WORKSPACE_COMMAND_TIMEOUT_SECONDS`: timeout de comandos del workspace.
 - `WORKSPACE_MAX_OUTPUT_CHARS`: salida máxima devuelta por comando.
 - `WORKSPACE_AGENT_MAX_ATTEMPTS`: intentos máximos de `/agent`, incluyendo reparación automática tras fallos.
+- `PROJECT_<NAME>_PATH`, `PROJECT_<NAME>_REPO`, `PROJECT_<NAME>_TOKEN`: perfiles GitHub controlados por proyecto.
+- `PROJECT_<NAME>_BASE_BRANCH`: rama base del perfil GitHub, por defecto `main`.
 
 ## Arrancar
 
@@ -95,6 +97,10 @@ En produccion, el archivo `.env` se crea manualmente en el VPS y nunca se sube a
 - `/git <proyecto> log`: muestra últimos commits.
 - `/git <proyecto> branch <nombre>`: crea una rama.
 - `/git <proyecto> commit <mensaje>`: commitea cambios del proyecto.
+- `/github list`: lista perfiles GitHub configurados.
+- `/github <perfil> clone`: clona el repo configurado en su ruta del workspace.
+- `/github <perfil> status`: muestra estado Git del perfil.
+- `/github <perfil> push-pr <título>`: pushea la rama actual y crea una PR sin hacer merge.
 - `/run <comando>`: ejecuta un comando dentro del workspace.
 - `/write <ruta> <contenido>`: escribe un archivo dentro del workspace.
 - `/files [ruta]`: lista archivos dentro del workspace permitido.
@@ -106,3 +112,5 @@ En produccion, el archivo `.env` se crea manualmente en el VPS y nunca se sube a
 El bot falla cerrado si `ALLOWED_USER_IDS` está vacío o mal formado. Las herramientas de workspace solo operan dentro de `WORKSPACE_ROOT`. El proyecto raíz no se monta como workspace para evitar exponer `.env`.
 
 Los comandos de workspace se ejecutan con entorno saneado para no exponer tokens del bot. No hay shell de host ni acceso intencionado fuera de `/app/workspace`.
+
+Los tokens GitHub se usan solo desde herramientas controladas del bot. No se pasan a Claude, no se guardan en `.git/config` y no deben escribirse en archivos del workspace.

@@ -7,7 +7,7 @@ from assistant.config import Settings
 
 
 WORKSPACE_INSTRUCTIONS_HEADER = "# Workspace Agent Instructions"
-WORKSPACE_INSTRUCTIONS_VERSION = "2026-05-09.3"
+WORKSPACE_INSTRUCTIONS_VERSION = "2026-05-09.4"
 
 DEFAULT_WORKSPACE_INSTRUCTIONS = f"""{WORKSPACE_INSTRUCTIONS_HEADER}
 
@@ -52,6 +52,7 @@ Do not treat the bot repository, host filesystem, Docker daemon, SSH configurati
 - For a coherent implementation that passes verification, create a local commit with a concise English message unless Gabriel asked not to commit.
 - If verification fails, do not hide it. Commit only when the repository remains coherent and the failure is documented in the response, otherwise leave changes uncommitted for diagnosis.
 - Do not push to remotes unless Gabriel explicitly asks for push/publish.
+- If Gabriel asks for GitHub publication, prepare the local branch and commit inside the project; the bot will use controlled GitHub project profiles for push/PR.
 - Do not deploy to external infrastructure unless Gabriel explicitly asks for deployment.
 - Prefer `git diff --stat` and `git status` for reporting; do not paste full patches into Telegram.
 - If a task fails, leave the workspace in a diagnosable state and report touched files, failing command, and next recommended action.

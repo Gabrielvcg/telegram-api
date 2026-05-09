@@ -34,6 +34,9 @@ Configure these environment variables:
 - `WORKSPACE_COMMAND_TIMEOUT_SECONDS`: command timeout, for example `120`.
 - `WORKSPACE_MAX_OUTPUT_CHARS`: maximum command output returned to Telegram, for example `6000`.
 - `WORKSPACE_AGENT_MAX_ATTEMPTS`: maximum `/agent` attempts including automatic repair, for example `2`.
+- `PROJECT_TELEGRAM_PATH`: workspace path for the bot repository, usually `projects/telegram-ai-assistant`.
+- `PROJECT_TELEGRAM_REPO`: GitHub repository, usually `Gabrielvcg/telegram-api`.
+- `PROJECT_TELEGRAM_BASE_BRANCH`: PR base branch, usually `main`.
 - `LOG_LEVEL`: usually `INFO`.
 
 Configure these environment secrets:
@@ -42,6 +45,7 @@ Configure these environment secrets:
 - `GHCR_TOKEN`: GitHub personal access token with `read:packages`, required if the GHCR package is private.
 - `TELEGRAM_BOT_TOKEN`: Telegram bot token.
 - `ANTHROPIC_API_KEY`: Anthropic API key.
+- `PROJECT_TELEGRAM_TOKEN`: fine-grained GitHub PAT limited to the bot repository with `Contents: Read and write` and `Pull requests: Read and write`.
 
 The workflow uses `GITHUB_TOKEN` to push the Docker image to GHCR.
 

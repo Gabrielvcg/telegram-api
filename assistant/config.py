@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -9,6 +9,15 @@ DEFAULT_SYSTEM_PROMPT = (
     "Eres el asistente personal de Gabriel. Responde siempre en español salvo "
     "que te hablen en otro idioma. Sé técnico, útil y conciso."
 )
+
+
+@dataclass(frozen=True)
+class GitHubProjectSettings:
+    name: str
+    path: str
+    repo: str
+    token: str = field(repr=False)
+    base_branch: str = "main"
 
 
 @dataclass(frozen=True)
@@ -32,6 +41,7 @@ class Settings:
     workspace_command_timeout_seconds: int
     workspace_max_output_chars: int
     workspace_agent_max_attempts: int
+    github_projects: dict[str, GitHubProjectSettings]
     log_level: str
 
 
@@ -62,6 +72,7 @@ def load_settings() -> Settings:
         workspace_command_timeout_seconds=_int_env("WORKSPACE_COMMAND_TIMEOUT_SECONDS", 120),
         workspace_max_output_chars=_int_env("WORKSPACE_MAX_OUTPUT_CHARS", 6000),
         workspace_agent_max_attempts=_bounded_int_env("WORKSPACE_AGENT_MAX_ATTEMPTS", 2, 1, 5),
+        github_projects=_parse_github_projects(),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
     )
 
@@ -105,6 +116,45 @@ def _bounded_int_env(name: str, default: int, minimum: int, maximum: int) -> int
     if value < minimum or value > maximum:
         raise RuntimeError(f"{name} must be between {minimum} and {maximum}")
     return value
+
+
+def _parse_github_projects() -> dict[str, GitHubProjectSettings]:
+    projects = {}
+    for env_name, token in os.environ.items():
+        if not env_name.startswith("PROJECT_") or not env_name.endswith("_TOKEN"):
+            continue
+        if _is_placeholder_secret(token):
+            continue
+
+        raw_name = env_name[len("PROJECT_") : -len("_TOKEN")]
+        project_name = raw_name.lower()
+        prefix = f"PROJECT_{raw_name}"
+        path = os.getenv(f"{prefix}_PATH", "").strip()
+        repo = os.getenv(f"{prefix}_REPO", "").strip()
+
+        if project_name == "telegram":
+            path = path or "projects/telegram-ai-assistant"
+            repo = repo or "Gabrielvcg/telegram-api"
+
+        if not path or not repo:
+            raise RuntimeError(
+                f"{prefix}_PATH and {prefix}_REPO are required when {prefix}_TOKEN is configured"
+            )
+
+        projects[project_name] = GitHubProjectSettings(
+            name=project_name,
+            path=path,
+            repo=repo,
+            token=token,
+            base_branch=os.getenv(f"{prefix}_BASE_BRANCH", "main").strip() or "main",
+        )
+    return projects
+
+
+def _is_placeholder_secret(value: str | None) -> bool:
+    if not value:
+        return True
+    return value.strip().lower() in {"replace-me", "changeme", "change-me", "todo"}
 
 
 def _bool_env(name: str, default: bool) -> bool:
