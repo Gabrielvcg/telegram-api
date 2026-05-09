@@ -161,7 +161,10 @@ Candidate capabilities:
 - Keep workspace tools scoped to `WORKSPACE_ROOT`.
 - Keep workspace writes and commands scoped to `WORKSPACE_ROOT`.
 - Telegram responses for code changes should summarize touched files and high-level flow, not paste full patches.
-- Git operations must stay inside workspace project paths. Do not push automatically.
+- Workspace projects should live under `projects/<project-name>`.
+- Use one branch per meaningful feature or change, named `agent/<short-task-name>`.
+- For coherent workspace implementations that pass verification, local commits are acceptable and expected unless Gabriel asks not to commit.
+- Git operations must stay inside workspace project paths. Do not push automatically unless Gabriel explicitly asks for push/publish.
 - Avoid adding shell/VPS control tools until authorization, logging, confirmation flows, and command allowlists are designed.
 - For future tool calling, require explicit boundaries around filesystem, shell, network, and infrastructure actions.
 

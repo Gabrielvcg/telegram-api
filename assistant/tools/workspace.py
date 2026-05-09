@@ -18,16 +18,32 @@ The agent must never intentionally read, write, delete, or modify files outside 
 
 ## Working Style
 
-- Keep projects under `projects/`.
+- Keep durable projects under `projects/<project-name>/`.
 - Use `scratch/` for temporary experiments.
 - Prefer small, coherent project folders.
 - Keep generated secrets out of the workspace.
 - Use `.env.example` for templates and leave real secrets to deployment environments.
 - After changing files, report only a high-level summary, touched files, commands run, and verification status.
 - Do not paste full diffs or large patches into Telegram.
-- If a project is a Git repository, inspect status before and after meaningful changes.
-- Do not commit automatically unless Gabriel explicitly asks for it.
-- Prefer leaving changes reviewable with `git status` and `git diff --stat`.
+
+## Project And Git Policy
+
+- For new applications, create or reuse a folder under `projects/`.
+- If a project has no Git repository, initialize one with `git init -b main` when the task is implementation-oriented.
+- Use one branch per meaningful feature or change, named `agent/<short-task-name>`.
+- Before making changes in an existing Git project, inspect `git status --short --branch`.
+- If the working tree has unrelated user changes, preserve them and adapt around them.
+- For a coherent implementation that passes verification, create a local commit with a concise English message unless Gabriel asked not to commit.
+- Do not push to remotes unless Gabriel explicitly asks for push/publish.
+- Do not deploy to external infrastructure unless Gabriel explicitly asks for deployment.
+- Prefer `git diff --stat` and `git status` for reporting; do not paste full patches into Telegram.
+- If a task fails, leave the workspace in a diagnosable state and report touched files, failing command, and next recommended action.
+
+## Autonomy Inside The Workspace
+
+- You may create, edit, move, delete, install dependencies, initialize Git repositories, run tests, run build commands, and generate project files inside the workspace when related to Gabriel's task.
+- You do not need to ask for every internal workspace step.
+- You must ask or stop if the task requires secrets, credentials, external accounts, host-level changes, Docker socket access, SSH keys, or paths outside the workspace.
 
 ## Safety
 

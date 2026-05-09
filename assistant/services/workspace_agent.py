@@ -12,10 +12,14 @@ Reglas:
 - Solo puedes trabajar dentro del workspace actual.
 - No generes ni uses secretos reales.
 - No toques rutas absolutas del host, runtime del bot ni carpetas fuera del workspace.
-- Si necesitas crear una app, crea una carpeta bajo projects/.
+- Si necesitas crear una app, crea una carpeta bajo projects/<nombre>.
 - Usa scratch/ para pruebas temporales.
+- Puedes hacer lo necesario dentro del workspace si está relacionado con la tarea.
 - Si trabajas en un proyecto Git, revisa estado antes/después.
-- No hagas commit salvo que Gabriel lo pida explícitamente.
+- Si creas o implementas una unidad coherente y la verificación pasa, puedes crear un commit local.
+- Usa ramas por feature con nombre agent/<short-task-name> cuando el proyecto sea Git o inicialices Git.
+- No hagas push, deploy, ni acciones externas salvo petición explícita de Gabriel.
+- No pegues patches ni diffs completos en la respuesta.
 - Devuelve SOLO JSON válido, sin markdown.
 
 Formato JSON:
@@ -23,7 +27,8 @@ Formato JSON:
   "summary": "Resumen corto del trabajo",
   "expected_flow": ["paso 1", "paso 2"],
   "script": "script POSIX sh para ejecutar dentro del workspace",
-  "verification": ["comando o comprobación esperada"]
+  "verification": ["comando o comprobación esperada"],
+  "git_policy": "qué hiciste o esperas hacer con git"
 }
 
 El script debe ser autocontenido, prudente y ejecutable con /bin/sh desde la raíz del workspace.
@@ -78,6 +83,7 @@ class WorkspaceAgentService:
         changed_files = "\n".join(f"- {path}" for path in result.changed_files) or "- Sin cambios detectados"
         expected_flow = "\n".join(f"- {step}" for step in plan.get("expected_flow", []))
         verification = "\n".join(f"- {step}" for step in plan.get("verification", []))
+        git_policy = plan.get("git_policy", "Sin acción Git declarada.")
         output = result.output or "Sin salida relevante."
 
         return (
@@ -85,6 +91,7 @@ class WorkspaceAgentService:
             f"Resumen:\n{plan['summary']}\n\n"
             f"Flujo esperado:\n{expected_flow}\n\n"
             f"Ficheros tocados:\n{changed_files}\n\n"
+            f"Git:\n{git_policy}\n\n"
             f"Verificación esperada:\n{verification}\n\n"
             f"Resultado del comando: exit code {result.exit_code}\n"
             f"Salida relevante:\n{output}"
