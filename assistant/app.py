@@ -8,6 +8,7 @@ from assistant.services.claude import ClaudeService
 from assistant.services.rate_limiter import RateLimiter
 from assistant.services.tasks import TaskService
 from assistant.services.workspace_agent import WorkspaceAgentService
+from assistant.services.workspace_git import WorkspaceGitService
 from assistant.storage.sqlite import SQLiteStorage
 from assistant.tools.workspace import WorkspaceTools
 
@@ -33,6 +34,7 @@ def create_application():
         rate_limiter=rate_limiter,
     )
     workspace_agent_service = WorkspaceAgentService(claude, workspace_tools)
+    workspace_git_service = WorkspaceGitService(workspace_tools)
 
     application = ApplicationBuilder().token(settings.telegram_bot_token).build()
     register_handlers(
@@ -42,6 +44,7 @@ def create_application():
         agent_service=agent_service,
         task_service=task_service,
         workspace_agent_service=workspace_agent_service,
+        workspace_git_service=workspace_git_service,
         workspace_tools=workspace_tools,
     )
     return application

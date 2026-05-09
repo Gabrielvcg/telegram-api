@@ -14,6 +14,8 @@ Reglas:
 - No toques rutas absolutas del host, runtime del bot ni carpetas fuera del workspace.
 - Si necesitas crear una app, crea una carpeta bajo projects/.
 - Usa scratch/ para pruebas temporales.
+- Si trabajas en un proyecto Git, revisa estado antes/después.
+- No hagas commit salvo que Gabriel lo pida explícitamente.
 - Devuelve SOLO JSON válido, sin markdown.
 
 Formato JSON:

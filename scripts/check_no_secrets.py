@@ -52,11 +52,15 @@ def main() -> int:
 
 def _files_to_scan() -> list[str]:
     if shutil.which("git"):
-        return subprocess.check_output(
-            ["git", "ls-files"],
-            text=True,
-            encoding="utf-8",
-        ).splitlines()
+        try:
+            return subprocess.check_output(
+                ["git", "ls-files"],
+                text=True,
+                encoding="utf-8",
+                stderr=subprocess.DEVNULL,
+            ).splitlines()
+        except subprocess.CalledProcessError:
+            pass
 
     ignored_dirs = {".git", "__pycache__", ".pytest_cache", "data"}
     return [

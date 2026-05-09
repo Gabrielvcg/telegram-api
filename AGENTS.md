@@ -71,7 +71,7 @@ Keep the assistant personality configurable through `SYSTEM_PROMPT`. Do not hard
 - `/reset` command to clear user memory.
 - `/mode normal` and `/mode plan`.
 - `/plan`, `/approve`, `/cancel`, `/status`, and `/tasks` for persistent task planning.
-- Workspace tools through `/files`, `/read`, `/search`, `/workspace`, `/write`, `/run`, and `/agent`.
+- Workspace tools through `/files`, `/read`, `/search`, `/workspace`, `/write`, `/run`, `/agent`, and `/git`.
 - Basic rate limiting.
 - Docker volume for runtime data.
 - GitHub Actions CI workflow.
@@ -161,6 +161,7 @@ Candidate capabilities:
 - Keep workspace tools scoped to `WORKSPACE_ROOT`.
 - Keep workspace writes and commands scoped to `WORKSPACE_ROOT`.
 - Telegram responses for code changes should summarize touched files and high-level flow, not paste full patches.
+- Git operations must stay inside workspace project paths. Do not push automatically.
 - Avoid adding shell/VPS control tools until authorization, logging, confirmation flows, and command allowlists are designed.
 - For future tool calling, require explicit boundaries around filesystem, shell, network, and infrastructure actions.
 

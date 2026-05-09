@@ -9,6 +9,7 @@ from assistant.config import Settings
 from assistant.services.agent import AgentService
 from assistant.services.tasks import TaskService
 from assistant.services.workspace_agent import WorkspaceAgentService
+from assistant.services.workspace_git import WorkspaceGitService
 from assistant.storage.sqlite import SQLiteStorage
 from assistant.telegram_utils import split_telegram_message
 from assistant.tools.workspace import CommandResult, WorkspaceTools
@@ -25,6 +26,7 @@ def register_handlers(
     agent_service: AgentService,
         task_service: TaskService,
         workspace_agent_service: WorkspaceAgentService,
+        workspace_git_service: WorkspaceGitService,
         workspace_tools: WorkspaceTools,
 ) -> None:
     async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -33,7 +35,7 @@ def register_handlers(
         await update.message.reply_text(
             "Listo. Soy tu asistente personal.\n\n"
             "Comandos: /help, /mode, /plan, /approve, /cancel, /status, "
-            "/tasks, /reset, /workspace, /agent, /run, /write, /files, /read, /search"
+            "/tasks, /reset, /workspace, /agent, /git, /run, /write, /files, /read, /search"
         )
 
     async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -50,6 +52,7 @@ def register_handlers(
             "/reset - borra memoria conversacional\n"
             "/workspace - estado y bootstrap del workspace\n"
             "/agent <objetivo> - ejecuta trabajo dentro del workspace\n"
+            "/git <proyecto> <acción> - gestiona Git dentro de un proyecto del workspace\n"
             "/run <comando> - ejecuta un comando dentro del workspace\n"
             "/write <ruta> <contenido> - escribe un archivo dentro del workspace\n"
             "/files [ruta] - lista archivos del workspace\n"
@@ -269,6 +272,39 @@ def register_handlers(
             )
             await update.message.reply_text("No he podido completar ese trabajo dentro del workspace.")
 
+    async def git_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _ensure_authorized(update, settings):
+            return
+        if len(context.args) < 2:
+            await update.message.reply_text(
+                "Usa: /git <proyecto> <init|status|log|diff|branch|commit> [args]"
+            )
+            return
+        project_path = context.args[0]
+        action = context.args[1]
+        args = context.args[2:]
+        try:
+            await _typing(update, context)
+            output = workspace_git_service.handle(project_path, action, args)
+            storage.record_tool_run(
+                telegram_user_id=update.effective_user.id,
+                tool_name="workspace_git",
+                status="success",
+                input_data={"project_path": project_path, "action": action, "args": args},
+                output=output,
+            )
+            await _reply_long(update, settings, output)
+        except Exception:
+            logger.exception("Error ejecutando Git en workspace")
+            storage.record_tool_run(
+                telegram_user_id=update.effective_user.id,
+                tool_name="workspace_git",
+                status="error",
+                input_data={"project_path": project_path, "action": action, "args": args},
+                output="",
+            )
+            await update.message.reply_text("No he podido ejecutar esa operación Git dentro del workspace.")
+
     async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _ensure_authorized(update, settings):
             return
@@ -295,6 +331,7 @@ def register_handlers(
     application.add_handler(CommandHandler("tasks", tasks_command))
     application.add_handler(CommandHandler("workspace", workspace_command))
     application.add_handler(CommandHandler("agent", agent_command))
+    application.add_handler(CommandHandler("git", git_command))
     application.add_handler(CommandHandler("run", run_command))
     application.add_handler(CommandHandler("write", write_command))
     application.add_handler(CommandHandler("files", files_command))

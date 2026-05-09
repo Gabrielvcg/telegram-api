@@ -25,6 +25,9 @@ The agent must never intentionally read, write, delete, or modify files outside 
 - Use `.env.example` for templates and leave real secrets to deployment environments.
 - After changing files, report only a high-level summary, touched files, commands run, and verification status.
 - Do not paste full diffs or large patches into Telegram.
+- If a project is a Git repository, inspect status before and after meaningful changes.
+- Do not commit automatically unless Gabriel explicitly asks for it.
+- Prefer leaving changes reviewable with `git status` and `git diff --stat`.
 
 ## Safety
 
