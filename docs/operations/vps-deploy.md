@@ -8,24 +8,24 @@ Create a GitHub repository and push this project to `main`.
 
 Never commit `.env`, `data/`, local databases, SSH keys, API tokens, or Telegram tokens.
 
-## GitHub Secrets
+## GitHub Environment
 
-Configure these repository secrets:
+Create a GitHub environment named `prod`.
+
+Configure these environment variables:
 
 - `VPS_HOST`: VPS IP or hostname.
 - `VPS_PORT`: SSH port, usually `22`.
 - `VPS_USER`: SSH user used for deployment.
-- `VPS_SSH_KEY`: private SSH key with access to the VPS.
 - `VPS_DEPLOY_PATH`: deployment directory, for example `/opt/telegram-ai-assistant`.
+- `GHCR_USERNAME`: GitHub username or organization account allowed to pull the package.
+
+Configure these environment secrets:
+
+- `VPS_SSH_KEY`: private SSH key with access to the VPS.
+- `GHCR_TOKEN`: GitHub personal access token with `read:packages`, required if the GHCR package is private.
 
 The workflow uses `GITHUB_TOKEN` to push the Docker image to GHCR.
-
-If the GHCR package is private, also configure:
-
-- `GHCR_USERNAME`: GitHub username or organization account allowed to pull the package.
-- `GHCR_TOKEN`: GitHub personal access token with `read:packages`.
-
-If the GHCR package is public, these two secrets are not needed.
 
 ## VPS Preparation
 
@@ -33,7 +33,7 @@ On the VPS, create the deployment folder:
 
 ```bash
 sudo mkdir -p /opt/telegram-ai-assistant
-sudo chown -R "$USER":"$USER" /opt/telegram-ai-assistant
+sudo chown -R vacaro:vacaro /opt/telegram-ai-assistant
 cd /opt/telegram-ai-assistant
 mkdir -p data workspace
 chmod 755 data workspace
