@@ -217,22 +217,33 @@ class WorkspaceTools:
         self._require_commands()
         self._validate_command(command)
         before = self._snapshot()
-        completed = subprocess.run(
-            command,
-            shell=True,
-            cwd=self.root,
-            env=self._safe_env(),
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            timeout=self.settings.workspace_command_timeout_seconds,
-        )
+        try:
+            completed = subprocess.run(
+                command,
+                shell=True,
+                cwd=self.root,
+                env=self._safe_env(),
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=self.settings.workspace_command_timeout_seconds,
+            )
+            exit_code = completed.returncode
+            output = completed.stdout[-self.settings.workspace_max_output_chars :]
+        except subprocess.TimeoutExpired as exc:
+            exit_code = 124
+            partial_output = exc.stdout or ""
+            if isinstance(partial_output, bytes):
+                partial_output = partial_output.decode("utf-8", errors="replace")
+            output = (
+                f"Comando agotó el timeout de {self.settings.workspace_command_timeout_seconds}s.\n"
+                f"{partial_output}"
+            )[-self.settings.workspace_max_output_chars :]
         after = self._snapshot()
         changed_files = self._changed_files(before, after)
-        output = completed.stdout[-self.settings.workspace_max_output_chars :]
         return CommandResult(
             command=command,
-            exit_code=completed.returncode,
+            exit_code=exit_code,
             output=output.strip(),
             changed_files=changed_files,
         )
@@ -283,6 +294,10 @@ class WorkspaceTools:
         env = {name: value for name, value in os.environ.items() if name in allowed_names}
         env["HOME"] = str(self.root)
         env["PYTHONUNBUFFERED"] = "1"
+        env["GIT_AUTHOR_NAME"] = self.settings.workspace_git_author_name
+        env["GIT_AUTHOR_EMAIL"] = self.settings.workspace_git_author_email
+        env["GIT_COMMITTER_NAME"] = self.settings.workspace_git_author_name
+        env["GIT_COMMITTER_EMAIL"] = self.settings.workspace_git_author_email
         return env
 
     def _snapshot(self) -> dict[str, tuple[int, int]]:

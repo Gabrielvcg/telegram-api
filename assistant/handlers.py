@@ -264,16 +264,17 @@ def register_handlers(
                 output=output,
             )
             await _reply_long(update, settings, output)
-        except Exception:
+        except Exception as exc:
             logger.exception("Error ejecutando agente de workspace")
+            output = _format_safe_exception("No he podido completar ese trabajo dentro del workspace.", exc)
             storage.record_tool_run(
                 telegram_user_id=update.effective_user.id,
                 tool_name="workspace_agent",
                 status="error",
                 input_data={"objective": objective},
-                output="",
+                output=output,
             )
-            await update.message.reply_text("No he podido completar ese trabajo dentro del workspace.")
+            await _reply_long(update, settings, output)
 
     async def git_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _ensure_authorized(update, settings):
@@ -462,4 +463,15 @@ def _format_command_result(result: CommandResult) -> str:
         f"Resultado: exit code {result.exit_code}\n\n"
         f"Ficheros tocados:\n{changed_files}\n\n"
         f"Salida relevante:\n{output}"
+    )
+
+
+def _format_safe_exception(prefix: str, exc: Exception) -> str:
+    detail = str(exc).strip() or exc.__class__.__name__
+    detail = detail.replace("\n", " ")[:800]
+    return (
+        f"{prefix}\n\n"
+        f"Causa técnica: {exc.__class__.__name__}: {detail}\n\n"
+        "Prueba /github telegram status o /git projects/telegram-ai-assistant status "
+        "para ver si quedaron cambios parciales."
     )

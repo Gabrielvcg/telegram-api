@@ -34,6 +34,8 @@ Configure these environment variables:
 - `WORKSPACE_COMMAND_TIMEOUT_SECONDS`: command timeout, for example `120`.
 - `WORKSPACE_MAX_OUTPUT_CHARS`: maximum command output returned to Telegram, for example `6000`.
 - `WORKSPACE_AGENT_MAX_ATTEMPTS`: maximum `/agent` attempts including automatic repair, for example `2`.
+- `WORKSPACE_GIT_AUTHOR_NAME`: Git author name for local agent commits.
+- `WORKSPACE_GIT_AUTHOR_EMAIL`: Git author email for local agent commits.
 - `PROJECT_TELEGRAM_PATH`: workspace path for the bot repository, usually `projects/telegram-ai-assistant`.
 - `PROJECT_TELEGRAM_REPO`: GitHub repository, usually `Gabrielvcg/telegram-api`.
 - `PROJECT_TELEGRAM_BASE_BRANCH`: PR base branch, usually `main`.

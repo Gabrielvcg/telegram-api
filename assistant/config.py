@@ -41,6 +41,8 @@ class Settings:
     workspace_command_timeout_seconds: int
     workspace_max_output_chars: int
     workspace_agent_max_attempts: int
+    workspace_git_author_name: str
+    workspace_git_author_email: str
     github_projects: dict[str, GitHubProjectSettings]
     log_level: str
 
@@ -72,6 +74,8 @@ def load_settings() -> Settings:
         workspace_command_timeout_seconds=_int_env("WORKSPACE_COMMAND_TIMEOUT_SECONDS", 120),
         workspace_max_output_chars=_int_env("WORKSPACE_MAX_OUTPUT_CHARS", 6000),
         workspace_agent_max_attempts=_bounded_int_env("WORKSPACE_AGENT_MAX_ATTEMPTS", 2, 1, 5),
+        workspace_git_author_name=os.getenv("WORKSPACE_GIT_AUTHOR_NAME", "Telegram AI Assistant"),
+        workspace_git_author_email=os.getenv("WORKSPACE_GIT_AUTHOR_EMAIL", "telegram-ai-assistant@users.noreply.github.com"),
         github_projects=_parse_github_projects(),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
     )

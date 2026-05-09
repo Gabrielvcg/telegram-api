@@ -191,6 +191,10 @@ class WorkspaceGitHubService:
         }
         env["HOME"] = str(self.workspace_tools.root)
         env["GIT_TERMINAL_PROMPT"] = "0"
+        env["GIT_AUTHOR_NAME"] = self.settings.workspace_git_author_name
+        env["GIT_AUTHOR_EMAIL"] = self.settings.workspace_git_author_email
+        env["GIT_COMMITTER_NAME"] = self.settings.workspace_git_author_name
+        env["GIT_COMMITTER_EMAIL"] = self.settings.workspace_git_author_email
         return env
 
     @contextmanager

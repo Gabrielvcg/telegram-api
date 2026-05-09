@@ -36,6 +36,7 @@ Variables principales:
 - `WORKSPACE_COMMAND_TIMEOUT_SECONDS`: timeout de comandos del workspace.
 - `WORKSPACE_MAX_OUTPUT_CHARS`: salida máxima devuelta por comando.
 - `WORKSPACE_AGENT_MAX_ATTEMPTS`: intentos máximos de `/agent`, incluyendo reparación automática tras fallos.
+- `WORKSPACE_GIT_AUTHOR_NAME` y `WORKSPACE_GIT_AUTHOR_EMAIL`: identidad usada por commits locales del agente.
 - `PROJECT_<NAME>_PATH`, `PROJECT_<NAME>_REPO`, `PROJECT_<NAME>_TOKEN`: perfiles GitHub controlados por proyecto.
 - `PROJECT_<NAME>_BASE_BRANCH`: rama base del perfil GitHub, por defecto `main`.
 
