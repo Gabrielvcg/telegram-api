@@ -115,3 +115,39 @@ El bot falla cerrado si `ALLOWED_USER_IDS` está vacío o mal formado. Las herra
 Los comandos de workspace se ejecutan con entorno saneado para no exponer tokens del bot. No hay shell de host ni acceso intencionado fuera de `/app/workspace`.
 
 Los tokens GitHub se usan solo desde herramientas controladas del bot. No se pasan a Claude, no se guardan en `.git/config` y no deben escribirse en archivos del workspace.
+
+### Comando /github
+
+El comando `/github` permite interactuar con repositorios de GitHub directamente desde Telegram.
+
+**Sintaxis:**
+```
+/github <acción> [argumentos]
+```
+
+**Acciones disponibles:**
+
+- **`/github status <repo>`** - Muestra el estado actual del repositorio (rama, commits recientes, issues abiertas)
+  - Ejemplo: `/github status owner/repo-name`
+
+- **`/github issues <repo>`** - Lista las issues abiertas del repositorio
+  - Ejemplo: `/github issues owner/repo-name`
+
+- **`/github create-issue <repo> <título>`** - Crea una nueva issue
+  - Ejemplo: `/github create-issue owner/repo-name "Mejorar documentación"`
+
+- **`/github pr <repo>`** - Lista los pull requests abiertos
+  - Ejemplo: `/github pr owner/repo-name`
+
+- **`/github branches <repo>`** - Lista las ramas del repositorio
+  - Ejemplo: `/github branches owner/repo-name`
+
+- **`/github commits <repo> [rama]`** - Muestra commits recientes (por defecto main)
+  - Ejemplo: `/github commits owner/repo-name`
+  - Ejemplo: `/github commits owner/repo-name develop`
+
+**Notas:**
+- Requiere configuración previa de token de GitHub
+- El formato de repo debe ser `owner/repository-name`
+- Algunos comandos pueden requerir permisos específicos en el repositorio
+
