@@ -41,6 +41,8 @@ docker compose up -d --build
 
 SQLite se guarda en `./data`, montado como volumen en `/app/data`.
 
+Las herramientas `/files`, `/read` y `/search` leen desde `./workspace`, montado en solo lectura como `/app/workspace`. No pongas secretos en esa carpeta.
+
 ## Ver logs
 
 ```bash
@@ -87,6 +89,6 @@ En produccion, el archivo `.env` se crea manualmente en el VPS y nunca se sube a
 
 ## Seguridad
 
-El bot falla cerrado si `ALLOWED_USER_IDS` está vacío o mal formado. Las herramientas de workspace solo leen dentro de `WORKSPACE_ROOT` y el volumen está montado en modo lectura en Docker Compose.
+El bot falla cerrado si `ALLOWED_USER_IDS` está vacío o mal formado. Las herramientas de workspace solo leen dentro de `WORKSPACE_ROOT` y el volumen está montado en modo lectura en Docker Compose. El proyecto raíz no se monta como workspace para evitar exponer `.env`.
 
 Las herramientas de escritura, shell, Docker/VPS y deploy deben añadirse detrás de confirmaciones explícitas, allowlists y registro de auditoría.

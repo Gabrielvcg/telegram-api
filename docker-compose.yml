@@ -11,4 +11,4 @@ services:
       WORKSPACE_ROOT: /app/workspace
     volumes:
       - ./data:/app/data
-      - ./:/app/workspace:ro
+      - ./workspace:/app/workspace:ro
