@@ -75,10 +75,24 @@ jobs:
 
       - name: Upload compose file
         env:
+          ALLOWED_USER_IDS: ${{ vars.ALLOWED_USER_IDS }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HISTORY_LIMIT: ${{ vars.HISTORY_LIMIT }}
+          LOG_LEVEL: ${{ vars.LOG_LEVEL }}
+          MAX_TELEGRAM_MESSAGE_LENGTH: ${{ vars.MAX_TELEGRAM_MESSAGE_LENGTH }}
+          MAX_TOKENS: ${{ vars.MAX_TOKENS }}
+          MODEL_NAME: ${{ vars.MODEL_NAME }}
+          PLAN_MAX_TOKENS: ${{ vars.PLAN_MAX_TOKENS }}
+          RATE_LIMIT_MESSAGES: ${{ vars.RATE_LIMIT_MESSAGES }}
+          RATE_LIMIT_WINDOW_SECONDS: ${{ vars.RATE_LIMIT_WINDOW_SECONDS }}
+          SYSTEM_PROMPT: ${{ vars.SYSTEM_PROMPT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           VPS_DEPLOY_PATH: ${{ vars.VPS_DEPLOY_PATH }}
           VPS_HOST: ${{ vars.VPS_HOST }}
           VPS_PORT: ${{ vars.VPS_PORT }}
           VPS_USER: ${{ vars.VPS_USER }}
+          WORKSPACE_READ_ENABLED: ${{ vars.WORKSPACE_READ_ENABLED }}
+          WORKSPACE_WRITE_ENABLED: ${{ vars.WORKSPACE_WRITE_ENABLED }}
         run: |
           retry() {
             for attempt in 1 2 3; do
@@ -89,6 +103,39 @@ jobs:
             "$@"
           }
 
+          required_vars=(
+            "ANTHROPIC_API_KEY"
+            "TELEGRAM_BOT_TOKEN"
+            "ALLOWED_USER_IDS"
+          )
+
+          for var_name in "${required_vars[@]}"; do
+            if [ -z "${!var_name}" ]; then
+              echo "Missing required production environment value: $var_name"
+              exit 1
+            fi
+          done
+
+          umask 077
+          cat > .env.deploy << EOF
+          TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
+          ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
+          MODEL_NAME=${MODEL_NAME:-claude-sonnet-4-5}
+          ALLOWED_USER_IDS=$ALLOWED_USER_IDS
+          SYSTEM_PROMPT=${SYSTEM_PROMPT:-Eres el asistente personal de Gabriel. Responde siempre en espanol salvo que te hablen en otro idioma. Se tecnico, util y conciso.}
+          DATABASE_PATH=/app/data/assistant.db
+          HISTORY_LIMIT=${HISTORY_LIMIT:-12}
+          MAX_TOKENS=${MAX_TOKENS:-1200}
+          PLAN_MAX_TOKENS=${PLAN_MAX_TOKENS:-2200}
+          MAX_TELEGRAM_MESSAGE_LENGTH=${MAX_TELEGRAM_MESSAGE_LENGTH:-3900}
+          RATE_LIMIT_MESSAGES=${RATE_LIMIT_MESSAGES:-20}
+          RATE_LIMIT_WINDOW_SECONDS=${RATE_LIMIT_WINDOW_SECONDS:-60}
+          WORKSPACE_ROOT=/app/workspace
+          WORKSPACE_READ_ENABLED=${WORKSPACE_READ_ENABLED:-true}
+          WORKSPACE_WRITE_ENABLED=${WORKSPACE_WRITE_ENABLED:-false}
+          LOG_LEVEL=${LOG_LEVEL:-INFO}
+          EOF
+
           retry ssh \
             -i ~/.ssh/deploy_key \
             -p "$VPS_PORT" \
@@ -97,7 +144,7 @@ jobs:
             -o ServerAliveInterval=10 \
             -o ServerAliveCountMax=3 \
             -o StrictHostKeyChecking=accept-new \
-            "$VPS_USER@$VPS_HOST" "mkdir -p '$VPS_DEPLOY_PATH'"
+            "$VPS_USER@$VPS_HOST" "mkdir -p '$VPS_DEPLOY_PATH' '$VPS_DEPLOY_PATH/data' '$VPS_DEPLOY_PATH/workspace'"
 
           retry scp \
             -i ~/.ssh/deploy_key \
@@ -107,6 +154,25 @@ jobs:
             -o StrictHostKeyChecking=accept-new \
             docker-compose.prod.yml \
             "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_PATH/docker-compose.yml"
+
+          retry scp \
+            -i ~/.ssh/deploy_key \
+            -P "$VPS_PORT" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            -o StrictHostKeyChecking=accept-new \
+            .env.deploy \
+            "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_PATH/.env.tmp"
+
+          retry ssh \
+            -i ~/.ssh/deploy_key \
+            -p "$VPS_PORT" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
+            -o StrictHostKeyChecking=accept-new \
+            "$VPS_USER@$VPS_HOST" "mv '$VPS_DEPLOY_PATH/.env.tmp' '$VPS_DEPLOY_PATH/.env' && chmod 600 '$VPS_DEPLOY_PATH/.env'"
 
       - name: Deploy container
         env:

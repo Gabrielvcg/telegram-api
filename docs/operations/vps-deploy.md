@@ -19,11 +19,25 @@ Configure these environment variables:
 - `VPS_USER`: SSH user used for deployment.
 - `VPS_DEPLOY_PATH`: deployment directory, for example `/opt/telegram-ai-assistant`.
 - `GHCR_USERNAME`: GitHub username or organization account allowed to pull the package.
+- `ALLOWED_USER_IDS`: Telegram user IDs allowed to use the bot.
+- `MODEL_NAME`: Claude model, for example `claude-sonnet-4-5`.
+- `SYSTEM_PROMPT`: assistant base prompt.
+- `HISTORY_LIMIT`: recent message history limit.
+- `MAX_TOKENS`: normal response token budget.
+- `PLAN_MAX_TOKENS`: planning response token budget.
+- `MAX_TELEGRAM_MESSAGE_LENGTH`: Telegram chunk size.
+- `RATE_LIMIT_MESSAGES`: user rate limit count.
+- `RATE_LIMIT_WINDOW_SECONDS`: user rate limit window.
+- `WORKSPACE_READ_ENABLED`: usually `true`.
+- `WORKSPACE_WRITE_ENABLED`: usually `false`.
+- `LOG_LEVEL`: usually `INFO`.
 
 Configure these environment secrets:
 
 - `VPS_SSH_KEY`: private SSH key with access to the VPS.
 - `GHCR_TOKEN`: GitHub personal access token with `read:packages`, required if the GHCR package is private.
+- `TELEGRAM_BOT_TOKEN`: Telegram bot token.
+- `ANTHROPIC_API_KEY`: Anthropic API key.
 
 The workflow uses `GITHUB_TOKEN` to push the Docker image to GHCR.
 
@@ -39,26 +53,7 @@ mkdir -p data workspace
 chmod 755 data workspace
 ```
 
-Create `/opt/telegram-ai-assistant/.env` manually on the VPS:
-
-```env
-TELEGRAM_BOT_TOKEN=replace-me
-ANTHROPIC_API_KEY=replace-me
-MODEL_NAME=claude-sonnet-4-5
-ALLOWED_USER_IDS=8654601585
-SYSTEM_PROMPT=Eres el asistente personal de Gabriel. Responde siempre en español salvo que te hablen en otro idioma. Sé técnico, útil y conciso.
-DATABASE_PATH=/app/data/assistant.db
-HISTORY_LIMIT=12
-MAX_TOKENS=1200
-PLAN_MAX_TOKENS=2200
-MAX_TELEGRAM_MESSAGE_LENGTH=3900
-RATE_LIMIT_MESSAGES=20
-RATE_LIMIT_WINDOW_SECONDS=60
-WORKSPACE_ROOT=/app/workspace
-WORKSPACE_READ_ENABLED=true
-WORKSPACE_WRITE_ENABLED=false
-LOG_LEVEL=INFO
-```
+The workflow creates `/opt/telegram-ai-assistant/.env` from the GitHub `prod` environment and sets it to mode `600`.
 
 Install Docker and Docker Compose on the VPS before the first deploy.
 
