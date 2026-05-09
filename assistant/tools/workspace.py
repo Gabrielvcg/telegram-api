@@ -273,6 +273,7 @@ class WorkspaceTools:
 
     def _validate_command(self, command: str) -> None:
         command_to_scan = self._strip_heredoc_bodies(command)
+        command_to_scan = self._allow_safe_special_paths(command_to_scan)
         blocked_fragments = [
             "../",
             "..\\",
@@ -313,6 +314,9 @@ class WorkspaceTools:
                 skip_until = match.group(1)
 
         return "\n".join(output_lines)
+
+    def _allow_safe_special_paths(self, command: str) -> str:
+        return re.sub(r"(?<![A-Za-z0-9_.-])/dev/null(?![A-Za-z0-9_.-])", "__DEV_NULL__", command)
 
     def _safe_env(self) -> dict[str, str]:
         allowed_names = {"PATH", "LANG", "LC_ALL", "HOME", "PYTHONPATH"}

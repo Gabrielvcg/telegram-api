@@ -12,9 +12,10 @@ class SensitiveDataFilter(logging.Filter):
     ]
 
     def filter(self, record: logging.LogRecord) -> bool:
-        record.msg = self._redact(str(record.msg))
+        if isinstance(record.msg, str):
+            record.msg = self._redact(record.msg)
         if record.args:
-            record.args = tuple(self._redact(str(arg)) for arg in record.args)
+            record.args = self._redact_args(record.args)
         return True
 
     def _redact(self, value: str) -> str:
@@ -22,6 +23,16 @@ class SensitiveDataFilter(logging.Filter):
         for pattern in self._patterns:
             redacted = pattern.sub("***REDACTED***", redacted)
         return redacted
+
+    def _redact_args(self, args):
+        if isinstance(args, tuple):
+            return tuple(self._redact(arg) if isinstance(arg, str) else arg for arg in args)
+        if isinstance(args, dict):
+            return {
+                key: self._redact(value) if isinstance(value, str) else value
+                for key, value in args.items()
+            }
+        return self._redact(args) if isinstance(args, str) else args
 
 
 def configure_logging(log_level: str) -> None:
