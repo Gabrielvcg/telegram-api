@@ -1,0 +1,16 @@
+services:
+  telegram-bot:
+    image: ${IMAGE_NAME}
+    container_name: telegram-bot
+    restart: unless-stopped
+    mem_limit: 512m
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /app/data/assistant.db
+      WORKSPACE_ROOT: /app/workspace
+      WORKSPACE_READ_ENABLED: "true"
+      WORKSPACE_WRITE_ENABLED: "false"
+    volumes:
+      - ./data:/app/data
+      - ./workspace:/app/workspace:ro
