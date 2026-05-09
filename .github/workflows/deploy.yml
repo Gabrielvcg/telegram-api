@@ -56,7 +56,6 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -T 20 -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
 
       - name: Check SSH connectivity
         env:
@@ -71,6 +70,7 @@ jobs:
             -o ConnectTimeout=20 \
             -o ServerAliveInterval=10 \
             -o ServerAliveCountMax=3 \
+            -o StrictHostKeyChecking=accept-new \
             "$VPS_USER@$VPS_HOST" "echo ssh-ok"
 
       - name: Upload compose file
@@ -96,6 +96,7 @@ jobs:
             -o ConnectTimeout=20 \
             -o ServerAliveInterval=10 \
             -o ServerAliveCountMax=3 \
+            -o StrictHostKeyChecking=accept-new \
             "$VPS_USER@$VPS_HOST" "mkdir -p '$VPS_DEPLOY_PATH'"
 
           retry scp \
@@ -103,6 +104,7 @@ jobs:
             -P "$VPS_PORT" \
             -o BatchMode=yes \
             -o ConnectTimeout=20 \
+            -o StrictHostKeyChecking=accept-new \
             docker-compose.prod.yml \
             "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_PATH/docker-compose.yml"
 
@@ -132,6 +134,7 @@ jobs:
               -o ConnectTimeout=20 \
               -o ServerAliveInterval=10 \
               -o ServerAliveCountMax=3 \
+              -o StrictHostKeyChecking=accept-new \
               "$VPS_USER@$VPS_HOST" \
               "docker login ghcr.io -u '$GHCR_USERNAME' --password-stdin"
           fi
@@ -143,6 +146,7 @@ jobs:
             -o ConnectTimeout=20 \
             -o ServerAliveInterval=10 \
             -o ServerAliveCountMax=3 \
+            -o StrictHostKeyChecking=accept-new \
             "$VPS_USER@$VPS_HOST" \
             "VPS_DEPLOY_PATH='$VPS_DEPLOY_PATH' IMAGE_NAME='${IMAGE_NAME}:latest' bash -s" << 'EOF'
           set -e
