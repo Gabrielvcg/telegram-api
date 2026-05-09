@@ -6,7 +6,7 @@ from assistant.tools.workspace import CommandResult, WorkspaceTools
 
 
 WORKSPACE_AGENT_PROMPT = """
-Actúa como un agente de desarrollo de software ejecutando trabajo dentro de un workspace aislado.
+Actua como un agente de desarrollo de software ejecutando trabajo dentro de un workspace aislado.
 
 Reglas:
 - Solo puedes trabajar dentro del workspace actual.
@@ -14,24 +14,26 @@ Reglas:
 - No toques rutas absolutas del host, runtime del bot ni carpetas fuera del workspace.
 - Si necesitas crear una app, crea una carpeta bajo projects/<nombre>.
 - Usa scratch/ para pruebas temporales.
-- Puedes hacer lo necesario dentro del workspace si está relacionado con la tarea.
-- Si trabajas en un proyecto Git, revisa estado antes/después.
-- Si creas o implementas una unidad coherente y la verificación pasa, puedes crear un commit local.
+- Para peticiones amplias, ejecuta el flujo completo dentro del workspace: inspeccionar, crear o editar, verificar, y dejar Git ordenado cuando proceda.
+- Puedes hacer lo necesario dentro del workspace si esta relacionado con la tarea.
+- Si trabajas en un proyecto Git, revisa estado antes/despues.
+- Si creas o implementas una unidad coherente y la verificacion pasa, puedes crear un commit local.
 - Usa ramas por feature con nombre agent/<short-task-name> cuando el proyecto sea Git o inicialices Git.
-- No hagas push, deploy, ni acciones externas salvo petición explícita de Gabriel.
+- Si un proyecto esta en main y vas a tocar codigo, crea o usa una rama agent/<short-task-name> antes de editar.
+- No hagas push, deploy, ni acciones externas salvo peticion explicita de Gabriel.
 - No pegues patches ni diffs completos en la respuesta.
-- Devuelve SOLO JSON válido, sin markdown.
+- Devuelve SOLO JSON valido, sin markdown.
 
 Formato JSON:
 {
   "summary": "Resumen corto del trabajo",
   "expected_flow": ["paso 1", "paso 2"],
   "script": "script POSIX sh para ejecutar dentro del workspace",
-  "verification": ["comando o comprobación esperada"],
-  "git_policy": "qué hiciste o esperas hacer con git"
+  "verification": ["comando o comprobacion esperada"],
+  "git_policy": "que hiciste o esperas hacer con git"
 }
 
-El script debe ser autocontenido, prudente y ejecutable con /bin/sh desde la raíz del workspace.
+El script debe ser autocontenido, prudente y ejecutable con /bin/sh desde la raiz del workspace.
 """
 
 
@@ -58,7 +60,7 @@ class WorkspaceAgentService:
         return (
             f"Objetivo del usuario:\n{objective}\n\n"
             f"Instrucciones del workspace:\n{instructions}\n\n"
-            f"Árbol visible del workspace:\n{files}\n"
+            f"Arbol visible del workspace:\n{files}\n"
         )
 
     def _parse_plan(self, raw_plan: str) -> dict:
@@ -69,7 +71,7 @@ class WorkspaceAgentService:
         try:
             plan = json.loads(text)
         except json.JSONDecodeError as exc:
-            raise ValueError("Claude no devolvió un plan JSON ejecutable.") from exc
+            raise ValueError("Claude no devolvio un plan JSON ejecutable.") from exc
 
         required_keys = {"summary", "expected_flow", "script", "verification"}
         missing = required_keys - set(plan)
@@ -83,7 +85,7 @@ class WorkspaceAgentService:
         changed_files = "\n".join(f"- {path}" for path in result.changed_files) or "- Sin cambios detectados"
         expected_flow = "\n".join(f"- {step}" for step in plan.get("expected_flow", []))
         verification = "\n".join(f"- {step}" for step in plan.get("verification", []))
-        git_policy = plan.get("git_policy", "Sin acción Git declarada.")
+        git_policy = plan.get("git_policy", "Sin accion Git declarada.")
         output = result.output or "Sin salida relevante."
 
         return (
@@ -92,7 +94,7 @@ class WorkspaceAgentService:
             f"Flujo esperado:\n{expected_flow}\n\n"
             f"Ficheros tocados:\n{changed_files}\n\n"
             f"Git:\n{git_policy}\n\n"
-            f"Verificación esperada:\n{verification}\n\n"
+            f"Verificacion esperada:\n{verification}\n\n"
             f"Resultado del comando: exit code {result.exit_code}\n"
             f"Salida relevante:\n{output}"
         )

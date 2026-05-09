@@ -44,11 +44,10 @@ class WorkspaceGitService:
         return self._run_shell(" && ".join(commands))
 
     def _commit(self, project_path: str, message: str) -> str:
-        safe_message = message.replace('"', '\\"')
         commands = [
             f"cd {self._quote(project_path)}",
             "git add .",
-            f'git commit -m "{safe_message}"',
+            f"git commit -m {self._quote(message)}",
             "git status --short --branch",
         ]
         return self._run_shell(" && ".join(commands))

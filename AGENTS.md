@@ -162,9 +162,13 @@ Candidate capabilities:
 - Keep workspace writes and commands scoped to `WORKSPACE_ROOT`.
 - Telegram responses for code changes should summarize touched files and high-level flow, not paste full patches.
 - Workspace projects should live under `projects/<project-name>`.
-- Use one branch per meaningful feature or change, named `agent/<short-task-name>`.
+- Use `scratch/` only for temporary experiments and disposable checks.
+- For broad `/agent` requests, the expected behavior is an end-to-end workspace flow: inspect, create/edit, verify, organize Git, and summarize.
+- Use one branch per meaningful feature or change, named `agent/<short-task-name>`, for example `agent/jwt-auth` or `agent/demo-fastapi-health`.
+- If a workspace project is on `main` and the task changes files, create or switch to a feature branch before editing unless Gabriel explicitly asks otherwise.
 - For coherent workspace implementations that pass verification, local commits are acceptable and expected unless Gabriel asks not to commit.
 - Git operations must stay inside workspace project paths. Do not push automatically unless Gabriel explicitly asks for push/publish.
+- Do not deploy, publish packages, configure external accounts, or use SSH keys from workspace automation unless Gabriel explicitly asks for that specific external action.
 - Avoid adding shell/VPS control tools until authorization, logging, confirmation flows, and command allowlists are designed.
 - For future tool calling, require explicit boundaries around filesystem, shell, network, and infrastructure actions.
 

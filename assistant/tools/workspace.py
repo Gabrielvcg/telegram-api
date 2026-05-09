@@ -6,15 +6,26 @@ from pathlib import Path
 from assistant.config import Settings
 
 
-DEFAULT_WORKSPACE_INSTRUCTIONS = """# Workspace Agent Instructions
+WORKSPACE_INSTRUCTIONS_HEADER = "# Workspace Agent Instructions"
+WORKSPACE_INSTRUCTIONS_VERSION = "2026-05-09.2"
+
+DEFAULT_WORKSPACE_INSTRUCTIONS = f"""{WORKSPACE_INSTRUCTIONS_HEADER}
 
 Reference date: 2026-05-09
+Policy version: {WORKSPACE_INSTRUCTIONS_VERSION}
 
 ## Scope
 
 This workspace is the only area where the Telegram AI assistant may create, edit, build, and run project files.
 
 The agent must never intentionally read, write, delete, or modify files outside this workspace.
+
+The root workspace path belongs to the runtime owner. Inside it, the agent may use:
+
+- `projects/` for durable software projects.
+- `scratch/` for temporary experiments, notes, generated examples, or disposable checks.
+
+Do not treat the bot repository, host filesystem, Docker daemon, SSH configuration, or production secrets as part of this workspace.
 
 ## Working Style
 
@@ -23,6 +34,8 @@ The agent must never intentionally read, write, delete, or modify files outside 
 - Prefer small, coherent project folders.
 - Keep generated secrets out of the workspace.
 - Use `.env.example` for templates and leave real secrets to deployment environments.
+- When Gabriel asks for a broad objective, complete the natural workflow end to end inside the workspace: inspect, plan briefly, edit/create files, run verification, and summarize.
+- Avoid splitting normal implementation requests into many follow-up prompts. Use `/git`, `/run`, `/read`, and similar commands only when Gabriel asks for specific low-level control.
 - After changing files, report only a high-level summary, touched files, commands run, and verification status.
 - Do not paste full diffs or large patches into Telegram.
 
@@ -31,9 +44,12 @@ The agent must never intentionally read, write, delete, or modify files outside 
 - For new applications, create or reuse a folder under `projects/`.
 - If a project has no Git repository, initialize one with `git init -b main` when the task is implementation-oriented.
 - Use one branch per meaningful feature or change, named `agent/<short-task-name>`.
+- Branch names must be lowercase where practical, concise, and task-based, for example `agent/jwt-auth`, `agent/demo-fastapi-health`, or `agent/dockerize-api`.
 - Before making changes in an existing Git project, inspect `git status --short --branch`.
+- If currently on `main` and the task changes files, create or switch to a feature branch before editing unless Gabriel explicitly asks otherwise.
 - If the working tree has unrelated user changes, preserve them and adapt around them.
 - For a coherent implementation that passes verification, create a local commit with a concise English message unless Gabriel asked not to commit.
+- If verification fails, do not hide it. Commit only when the repository remains coherent and the failure is documented in the response, otherwise leave changes uncommitted for diagnosis.
 - Do not push to remotes unless Gabriel explicitly asks for push/publish.
 - Do not deploy to external infrastructure unless Gabriel explicitly asks for deployment.
 - Prefer `git diff --stat` and `git status` for reporting; do not paste full patches into Telegram.
@@ -43,13 +59,28 @@ The agent must never intentionally read, write, delete, or modify files outside 
 
 - You may create, edit, move, delete, install dependencies, initialize Git repositories, run tests, run build commands, and generate project files inside the workspace when related to Gabriel's task.
 - You do not need to ask for every internal workspace step.
-- You must ask or stop if the task requires secrets, credentials, external accounts, host-level changes, Docker socket access, SSH keys, or paths outside the workspace.
+- You may create local Git repositories, branches, and commits inside workspace projects.
+- You may add project-level docs such as `README.md`, `CHANGELOG.md`, `docs/`, `.env.example`, Dockerfiles, compose files, tests, and CI examples when useful for the requested project.
+- You must ask or stop if the task requires secrets, credentials, external accounts, network publishing, host-level changes, Docker socket access, SSH keys, or paths outside the workspace.
 
 ## Safety
 
 - Do not touch `/app/data`, bot runtime files, host system folders, Docker socket, SSH keys, or production secrets.
 - Before destructive work, prefer moving files to a clearly named backup path inside the workspace.
 - If a task needs external credentials, stop and ask Gabriel to configure them outside the workspace.
+- Never run commands that intentionally escape the workspace through absolute host paths, parent-directory traversal, mounted sockets, or privileged system locations.
+
+## Reporting Contract
+
+Telegram responses must be concise and operational:
+
+- What was built or changed.
+- Files touched, grouped at a high level.
+- Git branch and commit, when applicable.
+- Verification commands and whether they passed.
+- Any blocker or next action.
+
+Do not include full patches, full file contents, long command logs, secrets, tokens, or noisy generated output.
 """
 
 
@@ -157,7 +188,21 @@ class WorkspaceTools:
         if not instructions.exists():
             instructions.write_text(DEFAULT_WORKSPACE_INSTRUCTIONS, encoding="utf-8")
             return "Workspace preparado. Creado AGENTS.md, projects/ y scratch/."
-        return "Workspace preparado. AGENTS.md ya existía; projects/ y scratch/ están disponibles."
+
+        current_instructions = instructions.read_text(encoding="utf-8", errors="replace")
+        if current_instructions != DEFAULT_WORKSPACE_INSTRUCTIONS:
+            if current_instructions.startswith(WORKSPACE_INSTRUCTIONS_HEADER):
+                instructions.write_text(DEFAULT_WORKSPACE_INSTRUCTIONS, encoding="utf-8")
+                return "Workspace preparado. AGENTS.md actualizado; projects/ y scratch/ estan disponibles."
+
+            generated_instructions = self.root / "AGENTS.generated.md"
+            generated_instructions.write_text(DEFAULT_WORKSPACE_INSTRUCTIONS, encoding="utf-8")
+            return (
+                "Workspace preparado. AGENTS.md personalizado detectado; "
+                "he creado AGENTS.generated.md con la politica recomendada."
+            )
+
+        return "Workspace preparado. AGENTS.md ya estaba actualizado; projects/ y scratch/ estan disponibles."
 
     def write_file(self, relative_path: str, content: str) -> str:
         self._require_write()
