@@ -64,7 +64,6 @@ jobs:
           VPS_PORT: ${{ vars.VPS_PORT }}
           VPS_USER: ${{ vars.VPS_USER }}
         run: |
-          timeout 20 bash -c "</dev/tcp/$VPS_HOST/$VPS_PORT"
           ssh \
             -i ~/.ssh/deploy_key \
             -p "$VPS_PORT" \
