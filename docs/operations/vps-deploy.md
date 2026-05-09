@@ -33,6 +33,7 @@ Configure these environment variables:
 - `WORKSPACE_COMMAND_ENABLED`: usually `true` for workspace agent execution.
 - `WORKSPACE_COMMAND_TIMEOUT_SECONDS`: command timeout, for example `120`.
 - `WORKSPACE_MAX_OUTPUT_CHARS`: maximum command output returned to Telegram, for example `6000`.
+- `WORKSPACE_AGENT_MAX_ATTEMPTS`: maximum `/agent` attempts including automatic repair, for example `2`.
 - `LOG_LEVEL`: usually `INFO`.
 
 Configure these environment secrets:

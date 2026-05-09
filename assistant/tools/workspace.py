@@ -7,7 +7,7 @@ from assistant.config import Settings
 
 
 WORKSPACE_INSTRUCTIONS_HEADER = "# Workspace Agent Instructions"
-WORKSPACE_INSTRUCTIONS_VERSION = "2026-05-09.2"
+WORKSPACE_INSTRUCTIONS_VERSION = "2026-05-09.3"
 
 DEFAULT_WORKSPACE_INSTRUCTIONS = f"""{WORKSPACE_INSTRUCTIONS_HEADER}
 
@@ -35,6 +35,7 @@ Do not treat the bot repository, host filesystem, Docker daemon, SSH configurati
 - Keep generated secrets out of the workspace.
 - Use `.env.example` for templates and leave real secrets to deployment environments.
 - When Gabriel asks for a broad objective, complete the natural workflow end to end inside the workspace: inspect, plan briefly, edit/create files, run verification, and summarize.
+- If verification fails and another attempt is available, use the failure output to repair incrementally instead of restarting destructively.
 - Avoid splitting normal implementation requests into many follow-up prompts. Use `/git`, `/run`, `/read`, and similar commands only when Gabriel asks for specific low-level control.
 - After changing files, report only a high-level summary, touched files, commands run, and verification status.
 - Do not paste full diffs or large patches into Telegram.

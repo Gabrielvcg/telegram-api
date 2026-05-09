@@ -35,6 +35,7 @@ Variables principales:
 - `WORKSPACE_COMMAND_ENABLED`: activa ejecución de comandos dentro del workspace.
 - `WORKSPACE_COMMAND_TIMEOUT_SECONDS`: timeout de comandos del workspace.
 - `WORKSPACE_MAX_OUTPUT_CHARS`: salida máxima devuelta por comando.
+- `WORKSPACE_AGENT_MAX_ATTEMPTS`: intentos máximos de `/agent`, incluyendo reparación automática tras fallos.
 
 ## Arrancar
 
@@ -87,7 +88,7 @@ En produccion, el archivo `.env` se crea manualmente en el VPS y nunca se sube a
 - `/tasks`: lista tareas recientes.
 - `/reset`: borra memoria conversacional del usuario.
 - `/workspace`: muestra estado y crea `AGENTS.md`, `projects/` y `scratch/` si la escritura está activa.
-- `/agent <objetivo>`: pide a Claude que ejecute trabajo dentro del workspace y devuelve resumen de alto nivel.
+- `/agent <objetivo>`: pide a Claude que ejecute trabajo dentro del workspace. Si un intento falla, puede hacer una pasada automática de reparación antes de devolver resumen de alto nivel.
 - `/git <proyecto> init`: inicializa Git en un proyecto del workspace.
 - `/git <proyecto> status`: muestra estado corto.
 - `/git <proyecto> diff`: muestra solo resumen estadístico de cambios.

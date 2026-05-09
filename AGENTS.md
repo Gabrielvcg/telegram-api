@@ -72,6 +72,7 @@ Keep the assistant personality configurable through `SYSTEM_PROMPT`. Do not hard
 - `/mode normal` and `/mode plan`.
 - `/plan`, `/approve`, `/cancel`, `/status`, and `/tasks` for persistent task planning.
 - Workspace tools through `/files`, `/read`, `/search`, `/workspace`, `/write`, `/run`, `/agent`, and `/git`.
+- `/agent` multi-attempt execution with automatic repair context after failed workspace commands.
 - Basic rate limiting.
 - Docker volume for runtime data.
 - GitHub Actions CI workflow.
@@ -112,9 +113,10 @@ Prioritize the following in roughly this order:
 1. Better summary-based context-window management.
 2. Streaming or progressive Telegram message updates.
 3. More robust error taxonomy and user-facing fallback messages.
-4. Patch-based write tools with explicit approval.
-5. Controlled test/build command execution.
-6. Anthropic tool calling with strict tool schemas.
+4. Passing recent conversation and saved plans into `/agent`.
+5. Project-active context such as `/project use projects/<name>`.
+6. Patch-based write tools with explicit approval.
+7. Anthropic tool calling with strict tool schemas.
 
 ## Medium-Term Roadmap
 

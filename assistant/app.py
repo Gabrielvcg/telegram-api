@@ -33,7 +33,7 @@ def create_application():
         claude=claude,
         rate_limiter=rate_limiter,
     )
-    workspace_agent_service = WorkspaceAgentService(claude, workspace_tools)
+    workspace_agent_service = WorkspaceAgentService(settings, claude, workspace_tools)
     workspace_git_service = WorkspaceGitService(workspace_tools)
 
     application = ApplicationBuilder().token(settings.telegram_bot_token).build()

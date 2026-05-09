@@ -31,6 +31,7 @@ class Settings:
     workspace_command_enabled: bool
     workspace_command_timeout_seconds: int
     workspace_max_output_chars: int
+    workspace_agent_max_attempts: int
     log_level: str
 
 
@@ -60,6 +61,7 @@ def load_settings() -> Settings:
         workspace_command_enabled=_bool_env("WORKSPACE_COMMAND_ENABLED", False),
         workspace_command_timeout_seconds=_int_env("WORKSPACE_COMMAND_TIMEOUT_SECONDS", 120),
         workspace_max_output_chars=_int_env("WORKSPACE_MAX_OUTPUT_CHARS", 6000),
+        workspace_agent_max_attempts=_bounded_int_env("WORKSPACE_AGENT_MAX_ATTEMPTS", 2, 1, 5),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
     )
 
@@ -96,6 +98,13 @@ def _int_env(name: str, default: int) -> int:
         return int(value)
     except ValueError as exc:
         raise RuntimeError(f"{name} must be an integer") from exc
+
+
+def _bounded_int_env(name: str, default: int, minimum: int, maximum: int) -> int:
+    value = _int_env(name, default)
+    if value < minimum or value > maximum:
+        raise RuntimeError(f"{name} must be between {minimum} and {maximum}")
+    return value
 
 
 def _bool_env(name: str, default: bool) -> bool:
