@@ -57,26 +57,12 @@ jobs:
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
-      - name: Check SSH connectivity
-        env:
-          VPS_HOST: ${{ vars.VPS_HOST }}
-          VPS_PORT: ${{ vars.VPS_PORT }}
-          VPS_USER: ${{ vars.VPS_USER }}
-        run: |
-          ssh \
-            -i ~/.ssh/deploy_key \
-            -p "$VPS_PORT" \
-            -o BatchMode=yes \
-            -o ConnectTimeout=20 \
-            -o ServerAliveInterval=10 \
-            -o ServerAliveCountMax=3 \
-            -o StrictHostKeyChecking=accept-new \
-            "$VPS_USER@$VPS_HOST" "echo ssh-ok"
-
-      - name: Upload compose file
+      - name: Deploy bundle on VPS
         env:
           ALLOWED_USER_IDS: ${{ vars.ALLOWED_USER_IDS }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GHCR_USERNAME: ${{ vars.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           HISTORY_LIMIT: ${{ vars.HISTORY_LIMIT }}
           LOG_LEVEL: ${{ vars.LOG_LEVEL }}
           MAX_TELEGRAM_MESSAGE_LENGTH: ${{ vars.MAX_TELEGRAM_MESSAGE_LENGTH }}
@@ -94,15 +80,6 @@ jobs:
           WORKSPACE_READ_ENABLED: ${{ vars.WORKSPACE_READ_ENABLED }}
           WORKSPACE_WRITE_ENABLED: ${{ vars.WORKSPACE_WRITE_ENABLED }}
         run: |
-          retry() {
-            for attempt in 1 2 3; do
-              "$@" && return 0
-              echo "Attempt $attempt failed; retrying in 10 seconds..."
-              sleep 10
-            done
-            "$@"
-          }
-
           required_vars=(
             "ANTHROPIC_API_KEY"
             "TELEGRAM_BOT_TOKEN"
@@ -136,90 +113,44 @@ jobs:
           LOG_LEVEL=${LOG_LEVEL:-INFO}
           EOF
 
-          retry ssh \
-            -i ~/.ssh/deploy_key \
-            -p "$VPS_PORT" \
-            -o BatchMode=yes \
-            -o ConnectTimeout=20 \
-            -o ServerAliveInterval=10 \
-            -o ServerAliveCountMax=3 \
-            -o StrictHostKeyChecking=accept-new \
-            "$VPS_USER@$VPS_HOST" "mkdir -p '$VPS_DEPLOY_PATH' '$VPS_DEPLOY_PATH/data' '$VPS_DEPLOY_PATH/workspace'"
+          printf '%s' "$GHCR_USERNAME" > .ghcr_username
+          printf '%s' "$GHCR_TOKEN" > .ghcr_token
+          tar -czf .deploy-bundle.tgz docker-compose.prod.yml .env.deploy .ghcr_username .ghcr_token
 
-          retry scp \
-            -i ~/.ssh/deploy_key \
-            -P "$VPS_PORT" \
-            -o BatchMode=yes \
-            -o ConnectTimeout=20 \
-            -o StrictHostKeyChecking=accept-new \
-            docker-compose.prod.yml \
-            "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_PATH/docker-compose.yml"
-
-          retry scp \
-            -i ~/.ssh/deploy_key \
-            -P "$VPS_PORT" \
-            -o BatchMode=yes \
-            -o ConnectTimeout=20 \
-            -o StrictHostKeyChecking=accept-new \
-            .env.deploy \
-            "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_PATH/.env.tmp"
-
-          retry ssh \
-            -i ~/.ssh/deploy_key \
-            -p "$VPS_PORT" \
-            -o BatchMode=yes \
-            -o ConnectTimeout=20 \
-            -o ServerAliveInterval=10 \
-            -o ServerAliveCountMax=3 \
-            -o StrictHostKeyChecking=accept-new \
-            "$VPS_USER@$VPS_HOST" "mv '$VPS_DEPLOY_PATH/.env.tmp' '$VPS_DEPLOY_PATH/.env' && chmod 600 '$VPS_DEPLOY_PATH/.env'"
-
-      - name: Deploy container
-        env:
-          GHCR_USERNAME: ${{ vars.GHCR_USERNAME }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-          VPS_DEPLOY_PATH: ${{ vars.VPS_DEPLOY_PATH }}
-          VPS_HOST: ${{ vars.VPS_HOST }}
-          VPS_PORT: ${{ vars.VPS_PORT }}
-          VPS_USER: ${{ vars.VPS_USER }}
-        run: |
-          retry() {
-            for attempt in 1 2 3; do
-              "$@" && return 0
-              echo "Attempt $attempt failed; retrying in 10 seconds..."
-              sleep 10
-            done
-            "$@"
-          }
-
-          if [ -n "$GHCR_USERNAME" ] && [ -n "$GHCR_TOKEN" ]; then
-            echo "$GHCR_TOKEN" | retry ssh \
+          deploy_once() {
+            cat .deploy-bundle.tgz | ssh \
               -i ~/.ssh/deploy_key \
               -p "$VPS_PORT" \
               -o BatchMode=yes \
-              -o ConnectTimeout=20 \
+              -o ConnectTimeout=30 \
               -o ServerAliveInterval=10 \
-              -o ServerAliveCountMax=3 \
+              -o ServerAliveCountMax=6 \
               -o StrictHostKeyChecking=accept-new \
-              "$VPS_USER@$VPS_HOST" \
-              "docker login ghcr.io -u '$GHCR_USERNAME' --password-stdin"
-          fi
+              "$VPS_USER@$VPS_HOST" "
+              set -e
+              mkdir -p '$VPS_DEPLOY_PATH' '$VPS_DEPLOY_PATH/data' '$VPS_DEPLOY_PATH/workspace'
+              cd '$VPS_DEPLOY_PATH'
+              tar -xzf -
+              mv docker-compose.prod.yml docker-compose.yml
+              mv .env.deploy .env
+              chmod 600 .env
+              if [ -s .ghcr_token ] && [ -s .ghcr_username ]; then
+                cat .ghcr_token | docker login ghcr.io -u \"\$(cat .ghcr_username)\" --password-stdin
+              fi
+              rm -f .ghcr_token .ghcr_username
+              IMAGE_NAME='${IMAGE_NAME}:latest' docker compose pull
+              IMAGE_NAME='${IMAGE_NAME}:latest' docker compose up -d
+              docker image prune -f
+              "
+          }
 
-          retry ssh \
-            -i ~/.ssh/deploy_key \
-            -p "$VPS_PORT" \
-            -o BatchMode=yes \
-            -o ConnectTimeout=20 \
-            -o ServerAliveInterval=10 \
-            -o ServerAliveCountMax=3 \
-            -o StrictHostKeyChecking=accept-new \
-            "$VPS_USER@$VPS_HOST" \
-            "VPS_DEPLOY_PATH='$VPS_DEPLOY_PATH' IMAGE_NAME='${IMAGE_NAME}:latest' bash -s" << 'EOF'
-          set -e
-          cd "$VPS_DEPLOY_PATH"
-          mkdir -p data workspace
-          test -f .env
-          IMAGE_NAME="$IMAGE_NAME" docker compose pull
-          IMAGE_NAME="$IMAGE_NAME" docker compose up -d
-          docker image prune -f
-          EOF
+          retry_deploy() {
+            for attempt in 1 2 3; do
+              deploy_once && return 0
+              echo "Attempt $attempt failed; retrying in 10 seconds..."
+              sleep 10
+            done
+            deploy_once
+          }
+
+          retry_deploy
