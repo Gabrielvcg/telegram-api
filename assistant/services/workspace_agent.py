@@ -121,6 +121,7 @@ class WorkspaceAgentService:
         path_evidence = self._build_review_path_evidence(objective)
         file_evidence = self._build_review_file_evidence(objective)
         deterministic_facts = self._build_review_facts(objective)
+        fact_matrix = self._build_review_fact_matrix(objective)
         review_context = (
             f"Objetivo de revision:\n{objective}\n\n"
             f"Instrucciones del workspace:\n{instructions}\n\n"
@@ -128,10 +129,13 @@ class WorkspaceAgentService:
             f"Evidencia de rutas objetivo:\n{path_evidence}\n\n"
             f"Evidencia de archivos clave:\n{file_evidence}\n\n"
             f"Hechos deterministas detectados:\n{deterministic_facts}\n\n"
+            f"Matriz de hechos verificables:\n{fact_matrix}\n\n"
             "Regla critica:\n"
             "- No afirmes que un proyecto o ruta no existe si la evidencia anterior muestra que existe.\n"
             "- Usa la evidencia de archivos para evitar sugerencias genericas sin base.\n"
             "- Si un riesgo depende de un hecho no comprobado, marcalo como hipotesis y no como hecho.\n"
+            "- Cada riesgo o mejora debe citar al menos una evidencia (archivo o matriz).\n"
+            "- Si no hay evidencia concreta, usa etiqueta [HIPOTESIS].\n"
             "- Si falta informacion, pide inspeccion adicional concreta, no inventes estado.\n\n"
             "Devuelve una revision con este formato:\n"
             "1) Estado actual\n"
@@ -345,6 +349,94 @@ class WorkspaceAgentService:
             facts.append("- logging config file: missing")
 
         return "\n".join(facts)
+
+    def _build_review_fact_matrix(self, objective: str) -> str:
+        paths = self._extract_workspace_paths(objective)
+        if not paths:
+            paths = ["projects/telegram-ai-assistant"]
+
+        root = None
+        for raw_base in paths:
+            cleaned_base = raw_base.strip().strip(".,;:()[]{}")
+            if not cleaned_base:
+                continue
+            candidate = (self.workspace_tools.root / cleaned_base).resolve()
+            if (
+                candidate.exists()
+                and candidate.is_dir()
+                and (
+                    candidate == self.workspace_tools.root
+                    or candidate.is_relative_to(self.workspace_tools.root)
+                )
+            ):
+                root = candidate
+                break
+
+        if root is None:
+            return "- FACT: project root not resolved | EVIDENCE: objective path missing in workspace"
+
+        def rel(path):
+            return str(path.relative_to(self.workspace_tools.root)).replace("\\", "/")
+
+        lines: list[str] = []
+        handlers_path = root / "assistant" / "handlers.py"
+        if handlers_path.exists():
+            handlers_content = handlers_path.read_text(encoding="utf-8", errors="replace")
+            command_checks = [
+                "CommandHandler(\"status\"",
+                "CommandHandler(\"reset\"",
+                "CommandHandler(\"help\"",
+                "CommandHandler(\"agent\"",
+                "CommandHandler(\"review\"",
+            ]
+            for marker in command_checks:
+                status = "YES" if marker in handlers_content else "NO"
+                lines.append(
+                    f"- FACT: command {marker} registered={status} | EVIDENCE: {rel(handlers_path)}"
+                )
+        else:
+            lines.append("- FACT: handlers file missing | EVIDENCE: assistant/handlers.py not found")
+
+        workspace_tool_path = root / "assistant" / "tools" / "workspace.py"
+        if workspace_tool_path.exists():
+            content = workspace_tool_path.read_text(encoding="utf-8", errors="replace")
+            checks = [
+                ("_safe_path(", "workspace path guard"),
+                ("is_relative_to", "workspace relative guard"),
+                ("_validate_command(", "workspace command validator"),
+            ]
+            for marker, label in checks:
+                status = "YES" if marker in content else "NO"
+                lines.append(
+                    f"- FACT: {label}={status} | EVIDENCE: {rel(workspace_tool_path)}"
+                )
+        else:
+            lines.append("- FACT: workspace guards unknown | EVIDENCE: assistant/tools/workspace.py missing")
+
+        tests_dir = root / "tests"
+        tests_count = len(list(tests_dir.rglob("test_*.py"))) if tests_dir.exists() else 0
+        lines.append(
+            f"- FACT: tests_present={'YES' if tests_count > 0 else 'NO'} count={tests_count} | EVIDENCE: {rel(tests_dir) if tests_dir.exists() else 'tests/ missing'}"
+        )
+
+        workflows_dir = root / ".github" / "workflows"
+        workflow_count = len(list(workflows_dir.glob("*.yml"))) if workflows_dir.exists() else 0
+        lines.append(
+            f"- FACT: workflows_present={'YES' if workflow_count > 0 else 'NO'} count={workflow_count} | EVIDENCE: {rel(workflows_dir) if workflows_dir.exists() else '.github/workflows missing'}"
+        )
+
+        requirements_path = root / "requirements.txt"
+        if requirements_path.exists():
+            req = requirements_path.read_text(encoding="utf-8", errors="replace")
+            rows = [line.strip() for line in req.splitlines() if line.strip() and not line.strip().startswith("#")]
+            pinned = [line for line in rows if "==" in line]
+            lines.append(
+                f"- FACT: requirements_pinned={len(pinned)}/{len(rows)} | EVIDENCE: {rel(requirements_path)}"
+            )
+        else:
+            lines.append("- FACT: requirements file missing | EVIDENCE: requirements.txt not found")
+
+        return "\n".join(lines)
 
     def _build_initial_context(self, objective: str) -> str:
         instructions = self.workspace_tools.read_file("AGENTS.md", max_chars=6000)
