@@ -122,6 +122,7 @@ class WorkspaceAgentService:
         file_evidence = self._build_review_file_evidence(objective)
         deterministic_facts = self._build_review_facts(objective)
         fact_matrix = self._build_review_fact_matrix(objective)
+        facts_json = self._build_review_facts_json(objective)
         review_context = (
             f"Objetivo de revision:\n{objective}\n\n"
             f"Instrucciones del workspace:\n{instructions}\n\n"
@@ -130,7 +131,9 @@ class WorkspaceAgentService:
             f"Evidencia de archivos clave:\n{file_evidence}\n\n"
             f"Hechos deterministas detectados:\n{deterministic_facts}\n\n"
             f"Matriz de hechos verificables:\n{fact_matrix}\n\n"
+            f"FACTS_JSON (fuente canonica):\n{facts_json}\n\n"
             "Regla critica:\n"
+            "- FACTS_JSON es la fuente canonica. No lo contradigas.\n"
             "- No afirmes que un proyecto o ruta no existe si la evidencia anterior muestra que existe.\n"
             "- Usa la evidencia de archivos para evitar sugerencias genericas sin base.\n"
             "- Si un riesgo depende de un hecho no comprobado, marcalo como hipotesis y no como hecho.\n"
@@ -437,6 +440,79 @@ class WorkspaceAgentService:
             lines.append("- FACT: requirements file missing | EVIDENCE: requirements.txt not found")
 
         return "\n".join(lines)
+
+    def _build_review_facts_json(self, objective: str) -> str:
+        paths = self._extract_workspace_paths(objective) or ["projects/telegram-ai-assistant"]
+        root = None
+        for raw_base in paths:
+            cleaned = raw_base.strip().strip(".,;:()[]{}")
+            if not cleaned:
+                continue
+            candidate = (self.workspace_tools.root / cleaned).resolve()
+            if (
+                candidate.exists()
+                and candidate.is_dir()
+                and (
+                    candidate == self.workspace_tools.root
+                    or candidate.is_relative_to(self.workspace_tools.root)
+                )
+            ):
+                root = candidate
+                break
+
+        payload: dict[str, object] = {
+            "project_root_resolved": bool(root),
+            "project_path": None,
+            "commands_registered": [],
+            "requirements_total": 0,
+            "requirements_pinned": 0,
+            "tests_present": False,
+            "tests_count": 0,
+            "workflows_present": False,
+            "workflows_count": 0,
+            "workspace_path_guard": "unknown",
+            "workspace_relative_guard": "unknown",
+            "workspace_command_validator": "unknown",
+        }
+        if root is None:
+            return json.dumps(payload, ensure_ascii=True, indent=2)
+
+        payload["project_path"] = str(root.relative_to(self.workspace_tools.root)).replace("\\", "/")
+
+        handlers_path = root / "assistant" / "handlers.py"
+        if handlers_path.exists():
+            content = handlers_path.read_text(encoding="utf-8", errors="replace")
+            commands = sorted(set(re.findall(r'CommandHandler\("([^"]+)"', content)))
+            payload["commands_registered"] = commands
+
+        requirements_path = root / "requirements.txt"
+        if requirements_path.exists():
+            req = requirements_path.read_text(encoding="utf-8", errors="replace")
+            rows = [line.strip() for line in req.splitlines() if line.strip() and not line.strip().startswith("#")]
+            pinned = [line for line in rows if "==" in line]
+            payload["requirements_total"] = len(rows)
+            payload["requirements_pinned"] = len(pinned)
+
+        tests_dir = root / "tests"
+        if tests_dir.exists() and tests_dir.is_dir():
+            tests_count = len(list(tests_dir.rglob("test_*.py")))
+            payload["tests_present"] = tests_count > 0
+            payload["tests_count"] = tests_count
+
+        workflows_dir = root / ".github" / "workflows"
+        if workflows_dir.exists() and workflows_dir.is_dir():
+            workflows_count = len(list(workflows_dir.glob("*.yml")))
+            payload["workflows_present"] = workflows_count > 0
+            payload["workflows_count"] = workflows_count
+
+        workspace_tool_path = root / "assistant" / "tools" / "workspace.py"
+        if workspace_tool_path.exists():
+            ws = workspace_tool_path.read_text(encoding="utf-8", errors="replace")
+            payload["workspace_path_guard"] = "yes" if "_safe_path(" in ws else "no"
+            payload["workspace_relative_guard"] = "yes" if "is_relative_to" in ws else "no"
+            payload["workspace_command_validator"] = "yes" if "_validate_command(" in ws else "no"
+
+        return json.dumps(payload, ensure_ascii=True, indent=2)
 
     def _build_initial_context(self, objective: str) -> str:
         instructions = self.workspace_tools.read_file("AGENTS.md", max_chars=6000)
