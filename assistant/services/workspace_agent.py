@@ -118,10 +118,15 @@ class WorkspaceAgentService:
         self.workspace_tools.bootstrap()
         instructions = self.workspace_tools.read_file("AGENTS.md", max_chars=6000)
         files = self.workspace_tools.list_files(".", limit=180)
+        path_evidence = self._build_review_path_evidence(objective)
         review_context = (
             f"Objetivo de revision:\n{objective}\n\n"
             f"Instrucciones del workspace:\n{instructions}\n\n"
             f"Arbol visible del workspace:\n{files}\n\n"
+            f"Evidencia de rutas objetivo:\n{path_evidence}\n\n"
+            "Regla critica:\n"
+            "- No afirmes que un proyecto o ruta no existe si la evidencia anterior muestra que existe.\n"
+            "- Si falta informacion, pide inspeccion adicional concreta, no inventes estado.\n\n"
             "Devuelve una revision con este formato:\n"
             "1) Estado actual\n"
             "2) Riesgos y fricciones\n"
@@ -134,6 +139,55 @@ class WorkspaceAgentService:
             max_tokens=self.settings.plan_max_tokens,
         )
         return f"Revision completada.\n\n{answer}"
+
+    def _build_review_path_evidence(self, objective: str) -> str:
+        candidates = self._extract_workspace_paths(objective)
+        if not candidates:
+            return "Sin rutas explicitas en el objetivo."
+
+        blocks: list[str] = []
+        for candidate in candidates[:6]:
+            normalized = candidate.strip().strip(".,;:()[]{}")
+            if not normalized:
+                continue
+
+            path = self.workspace_tools.root / normalized
+            try:
+                resolved = path.resolve()
+            except OSError:
+                blocks.append(f"[{normalized}] no resolvible.")
+                continue
+
+            if resolved != self.workspace_tools.root and not resolved.is_relative_to(self.workspace_tools.root):
+                blocks.append(f"[{normalized}] fuera del workspace permitido.")
+                continue
+
+            if not resolved.exists():
+                blocks.append(f"[{normalized}] no existe.")
+                continue
+
+            display = str(resolved.relative_to(self.workspace_tools.root)).replace("\\", "/")
+            kind = "directorio" if resolved.is_dir() else "archivo"
+            listing = ""
+            if resolved.is_dir():
+                listing = self.workspace_tools.list_files(display, limit=40)
+            else:
+                preview = self.workspace_tools.read_file(display, max_chars=800)
+                listing = f"Preview:\n{preview}"
+            blocks.append(
+                f"[{normalized}] existe ({kind}) -> {display}\n"
+                f"{listing}"
+            )
+
+        return "\n\n".join(blocks) if blocks else "Sin evidencia concreta de rutas objetivo."
+
+    def _extract_workspace_paths(self, objective: str) -> list[str]:
+        matches = re.findall(r"(projects/[^\s`\"']+|scratch/[^\s`\"']+)", objective)
+        ordered_unique: list[str] = []
+        for value in matches:
+            if value not in ordered_unique:
+                ordered_unique.append(value)
+        return ordered_unique
 
     def _build_initial_context(self, objective: str) -> str:
         instructions = self.workspace_tools.read_file("AGENTS.md", max_chars=6000)
