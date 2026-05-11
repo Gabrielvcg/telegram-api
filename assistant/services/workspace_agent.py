@@ -52,6 +52,30 @@ Reglas adicionales:
 - No hagas push, deploy ni acciones externas.
 """
 
+REVIEW_AGENT_PROMPT = """
+Actua como un senior engineer revisando un proyecto dentro de un workspace aislado.
+
+Reglas:
+- No ejecutes comandos ni propongas scripts.
+- Analiza arquitectura, DX, seguridad, observabilidad, testabilidad y UX del bot.
+- Entrega mejoras priorizadas, concretas y accionables.
+- Usa espanol claro, tecnico y conciso.
+- Si detectas huecos de informacion, dilo explicitamente.
+"""
+
+JSON_RECOVERY_PROMPT = """
+Convierte la respuesta previa a JSON valido estricto.
+
+Devuelve SOLO JSON con estas claves:
+- summary (string)
+- expected_flow (array de strings)
+- script (string)
+- verification (array de strings)
+- git_policy (string)
+
+No incluyas markdown, comentarios ni texto adicional.
+"""
+
 
 @dataclass(frozen=True)
 class AgentAttempt:
@@ -77,7 +101,7 @@ class WorkspaceAgentService:
                 extra_system_prompt=self._system_prompt_for_attempt(attempt_number),
                 max_tokens=self.settings.plan_max_tokens,
             )
-            plan = self._parse_plan(raw_plan)
+            plan = self._parse_plan_with_recovery(raw_plan, context, attempt_number)
             result = self.workspace_tools.run_command(plan["script"])
             attempt = AgentAttempt(number=attempt_number, plan=plan, result=result)
             attempts.append(attempt)
@@ -89,6 +113,27 @@ class WorkspaceAgentService:
                 context = self._build_repair_context(objective, attempts)
 
         return self._format_result(objective, attempts, completed=False)
+
+    def review_objective(self, objective: str) -> str:
+        self.workspace_tools.bootstrap()
+        instructions = self.workspace_tools.read_file("AGENTS.md", max_chars=6000)
+        files = self.workspace_tools.list_files(".", limit=180)
+        review_context = (
+            f"Objetivo de revision:\n{objective}\n\n"
+            f"Instrucciones del workspace:\n{instructions}\n\n"
+            f"Arbol visible del workspace:\n{files}\n\n"
+            "Devuelve una revision con este formato:\n"
+            "1) Estado actual\n"
+            "2) Riesgos y fricciones\n"
+            "3) Mejoras priorizadas (P0/P1/P2)\n"
+            "4) Siguiente paso concreto"
+        )
+        answer = self.claude.create_message(
+            messages=[{"role": "user", "content": review_context}],
+            extra_system_prompt=REVIEW_AGENT_PROMPT,
+            max_tokens=self.settings.plan_max_tokens,
+        )
+        return f"Revision completada.\n\n{answer}"
 
     def _build_initial_context(self, objective: str) -> str:
         instructions = self.workspace_tools.read_file("AGENTS.md", max_chars=6000)
@@ -136,6 +181,27 @@ class WorkspaceAgentService:
         if not isinstance(plan["script"], str) or not plan["script"].strip():
             raise ValueError("Plan sin script ejecutable.")
         return plan
+
+    def _parse_plan_with_recovery(self, raw_plan: str, context: str, attempt_number: int) -> dict:
+        try:
+            return self._parse_plan(raw_plan)
+        except ValueError:
+            recovery_input = (
+                f"Contexto original:\n{context}\n\n"
+                f"Intento de respuesta no valido:\n{raw_plan}\n\n"
+                "Reescribe a JSON valido."
+            )
+            repaired = self.claude.create_message(
+                messages=[{"role": "user", "content": recovery_input}],
+                extra_system_prompt=JSON_RECOVERY_PROMPT,
+                max_tokens=self.settings.plan_max_tokens,
+            )
+            try:
+                return self._parse_plan(repaired)
+            except ValueError as exc:
+                raise ValueError(
+                    f"Claude no devolvio un plan JSON ejecutable en el intento {attempt_number}."
+                ) from exc
 
     def _format_result(self, objective: str, attempts: list[AgentAttempt], completed: bool) -> str:
         latest_attempt = attempts[-1]

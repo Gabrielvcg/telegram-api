@@ -37,7 +37,7 @@ def register_handlers(
         await update.message.reply_text(
             "Listo. Soy tu asistente personal.\n\n"
             "Comandos: /help, /mode, /plan, /approve, /cancel, /status, "
-            "/tasks, /reset, /workspace, /agent, /git, /github, /run, /write, /files, /read, /search"
+            "/tasks, /reset, /workspace, /review, /agent, /git, /github, /run, /write, /files, /read, /search"
         )
 
     async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -53,6 +53,7 @@ def register_handlers(
             "/tasks - lista tareas recientes\n"
             "/reset - borra memoria conversacional\n"
             "/workspace - estado y bootstrap del workspace\n"
+            "/review <objetivo> - analiza el proyecto y propone mejoras sin ejecutar cambios\n"
             "/agent <objetivo> - ejecuta trabajo dentro del workspace\n"
             "/git <proyecto> <acción> - gestiona Git dentro de un proyecto del workspace\n"
             "/github <perfil> <acción> - clone/status/push-pr controlado por perfil GitHub\n"
@@ -255,7 +256,10 @@ def register_handlers(
             return
         try:
             await _typing(update, context)
-            output = workspace_agent_service.execute_objective(objective)
+            if _looks_like_review_request(objective):
+                output = workspace_agent_service.review_objective(objective)
+            else:
+                output = workspace_agent_service.execute_objective(objective)
             storage.record_tool_run(
                 telegram_user_id=update.effective_user.id,
                 tool_name="workspace_agent",
@@ -270,6 +274,36 @@ def register_handlers(
             storage.record_tool_run(
                 telegram_user_id=update.effective_user.id,
                 tool_name="workspace_agent",
+                status="error",
+                input_data={"objective": objective},
+                output=output,
+            )
+            await _reply_long(update, settings, output)
+
+    async def review_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _ensure_authorized(update, settings):
+            return
+        objective = _command_payload(update, "review")
+        if not objective:
+            await update.message.reply_text("Usa: /review <objetivo>")
+            return
+        try:
+            await _typing(update, context)
+            output = workspace_agent_service.review_objective(objective)
+            storage.record_tool_run(
+                telegram_user_id=update.effective_user.id,
+                tool_name="workspace_review",
+                status="success",
+                input_data={"objective": objective},
+                output=output,
+            )
+            await _reply_long(update, settings, output)
+        except Exception as exc:
+            logger.exception("Error ejecutando review de workspace")
+            output = _format_safe_exception("No he podido completar esa revision del workspace.", exc)
+            storage.record_tool_run(
+                telegram_user_id=update.effective_user.id,
+                tool_name="workspace_review",
                 status="error",
                 input_data={"objective": objective},
                 output=output,
@@ -364,6 +398,7 @@ def register_handlers(
     application.add_handler(CommandHandler("status", status_command))
     application.add_handler(CommandHandler("tasks", tasks_command))
     application.add_handler(CommandHandler("workspace", workspace_command))
+    application.add_handler(CommandHandler("review", review_command))
     application.add_handler(CommandHandler("agent", agent_command))
     application.add_handler(CommandHandler("git", git_command))
     application.add_handler(CommandHandler("github", github_command))
@@ -475,3 +510,17 @@ def _format_safe_exception(prefix: str, exc: Exception) -> str:
         "Prueba /github telegram status o /git projects/telegram-ai-assistant status "
         "para ver si quedaron cambios parciales."
     )
+
+
+def _looks_like_review_request(objective: str) -> bool:
+    lowered = objective.lower()
+    review_signals = (
+        "revisa",
+        "review",
+        "audita",
+        "analiza",
+        "dime que mejorar",
+        "propon mejoras",
+        "que mejorar",
+    )
+    return any(signal in lowered for signal in review_signals)

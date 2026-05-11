@@ -18,7 +18,7 @@ class WorkspaceGitService:
         if action == "log":
             return self._run_git(project_path, "git log --oneline --decorate -n 10")
         if action == "diff":
-            return self._run_git(project_path, "git diff --stat")
+            return self._diff(project_path)
         if action == "branch":
             if not args:
                 return "Usa: /git <proyecto> branch <nombre-rama>"
@@ -49,6 +49,13 @@ class WorkspaceGitService:
             "git add .",
             f"git commit -m {self._quote(message)}",
             "git status --short --branch",
+        ]
+        return self._run_shell(" && ".join(commands))
+
+    def _diff(self, project_path: str) -> str:
+        commands = [
+            f"cd {self._quote(project_path)}",
+            "(git diff --stat && git diff --cached --stat && git status --short --branch)",
         ]
         return self._run_shell(" && ".join(commands))
 

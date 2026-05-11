@@ -91,7 +91,8 @@ En produccion, el archivo `.env` se crea manualmente en el VPS y nunca se sube a
 - `/tasks`: lista tareas recientes.
 - `/reset`: borra memoria conversacional del usuario.
 - `/workspace`: muestra estado y crea `AGENTS.md`, `projects/` y `scratch/` si la escritura está activa.
-- `/agent <objetivo>`: pide a Claude que ejecute trabajo dentro del workspace. Si un intento falla, puede hacer una pasada automática de reparación antes de devolver resumen de alto nivel.
+- `/review <objetivo>`: análisis del proyecto y mejoras sugeridas sin ejecutar cambios.
+- `/agent <objetivo>`: ejecuta trabajo dentro del workspace. Si un intento falla, puede hacer una pasada automática de reparación; si Claude responde en formato no ejecutable, el bot intenta normalizar el JSON automáticamente.
 - `/git <proyecto> init`: inicializa Git en un proyecto del workspace.
 - `/git <proyecto> status`: muestra estado corto.
 - `/git <proyecto> diff`: muestra solo resumen estadístico de cambios.
