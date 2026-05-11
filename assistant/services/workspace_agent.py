@@ -119,13 +119,16 @@ class WorkspaceAgentService:
         instructions = self.workspace_tools.read_file("AGENTS.md", max_chars=6000)
         files = self.workspace_tools.list_files(".", limit=180)
         path_evidence = self._build_review_path_evidence(objective)
+        file_evidence = self._build_review_file_evidence(objective)
         review_context = (
             f"Objetivo de revision:\n{objective}\n\n"
             f"Instrucciones del workspace:\n{instructions}\n\n"
             f"Arbol visible del workspace:\n{files}\n\n"
             f"Evidencia de rutas objetivo:\n{path_evidence}\n\n"
+            f"Evidencia de archivos clave:\n{file_evidence}\n\n"
             "Regla critica:\n"
             "- No afirmes que un proyecto o ruta no existe si la evidencia anterior muestra que existe.\n"
+            "- Usa la evidencia de archivos para evitar sugerencias genericas sin base.\n"
             "- Si falta informacion, pide inspeccion adicional concreta, no inventes estado.\n\n"
             "Devuelve una revision con este formato:\n"
             "1) Estado actual\n"
@@ -188,6 +191,62 @@ class WorkspaceAgentService:
             if value not in ordered_unique:
                 ordered_unique.append(value)
         return ordered_unique
+
+    def _build_review_file_evidence(self, objective: str) -> str:
+        targets = [
+            "README.md",
+            ".env.example",
+            "requirements.txt",
+            "Dockerfile",
+            "docker-compose.yml",
+            "docker-compose.prod.yml",
+            "bot.py",
+            "assistant/app.py",
+            "assistant/handlers.py",
+            "assistant/services/agent.py",
+            "assistant/services/workspace_agent.py",
+            ".github/workflows/ci.yml",
+            ".github/workflows/deploy.yml",
+        ]
+        paths = self._extract_workspace_paths(objective)
+        if not paths:
+            paths = ["projects/telegram-ai-assistant"]
+
+        blocks: list[str] = []
+        for base in paths[:3]:
+            cleaned_base = base.strip().strip(".,;:()[]{}")
+            if not cleaned_base:
+                continue
+            resolved_base = self.workspace_tools.root / cleaned_base
+            try:
+                resolved_base = resolved_base.resolve()
+            except OSError:
+                continue
+            if (
+                resolved_base != self.workspace_tools.root
+                and not resolved_base.is_relative_to(self.workspace_tools.root)
+            ) or not resolved_base.exists() or not resolved_base.is_dir():
+                continue
+
+            existing_files = []
+            for relative_file in targets:
+                candidate = resolved_base / relative_file
+                if candidate.exists() and candidate.is_file():
+                    display = str(candidate.relative_to(self.workspace_tools.root)).replace("\\", "/")
+                    excerpt = self.workspace_tools.read_file(display, max_chars=900)
+                    existing_files.append(
+                        f"### {display}\n{excerpt}"
+                    )
+                if len(existing_files) >= 8:
+                    break
+
+            if existing_files:
+                blocks.append(
+                    f"Proyecto: {cleaned_base}\n"
+                    + "\n\n".join(existing_files)
+                )
+
+        return "\n\n".join(blocks) if blocks else "No se detectaron archivos clave legibles para este objetivo."
 
     def _build_initial_context(self, objective: str) -> str:
         instructions = self.workspace_tools.read_file("AGENTS.md", max_chars=6000)
