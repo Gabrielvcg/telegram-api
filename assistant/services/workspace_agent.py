@@ -120,15 +120,18 @@ class WorkspaceAgentService:
         files = self.workspace_tools.list_files(".", limit=180)
         path_evidence = self._build_review_path_evidence(objective)
         file_evidence = self._build_review_file_evidence(objective)
+        deterministic_facts = self._build_review_facts(objective)
         review_context = (
             f"Objetivo de revision:\n{objective}\n\n"
             f"Instrucciones del workspace:\n{instructions}\n\n"
             f"Arbol visible del workspace:\n{files}\n\n"
             f"Evidencia de rutas objetivo:\n{path_evidence}\n\n"
             f"Evidencia de archivos clave:\n{file_evidence}\n\n"
+            f"Hechos deterministas detectados:\n{deterministic_facts}\n\n"
             "Regla critica:\n"
             "- No afirmes que un proyecto o ruta no existe si la evidencia anterior muestra que existe.\n"
             "- Usa la evidencia de archivos para evitar sugerencias genericas sin base.\n"
+            "- Si un riesgo depende de un hecho no comprobado, marcalo como hipotesis y no como hecho.\n"
             "- Si falta informacion, pide inspeccion adicional concreta, no inventes estado.\n\n"
             "Devuelve una revision con este formato:\n"
             "1) Estado actual\n"
@@ -247,6 +250,101 @@ class WorkspaceAgentService:
                 )
 
         return "\n\n".join(blocks) if blocks else "No se detectaron archivos clave legibles para este objetivo."
+
+    def _build_review_facts(self, objective: str) -> str:
+        paths = self._extract_workspace_paths(objective)
+        if not paths:
+            paths = ["projects/telegram-ai-assistant"]
+
+        project_root = None
+        for raw_base in paths:
+            cleaned_base = raw_base.strip().strip(".,;:()[]{}")
+            if not cleaned_base:
+                continue
+            candidate = (self.workspace_tools.root / cleaned_base).resolve()
+            if (
+                candidate.exists()
+                and candidate.is_dir()
+                and (
+                    candidate == self.workspace_tools.root
+                    or candidate.is_relative_to(self.workspace_tools.root)
+                )
+            ):
+                project_root = candidate
+                break
+
+        if project_root is None:
+            return "- Proyecto objetivo no resoluble en workspace."
+
+        facts: list[str] = []
+        rel = lambda path: str(path.relative_to(self.workspace_tools.root)).replace("\\", "/")
+
+        required_markers = [
+            "README.md",
+            "requirements.txt",
+            "Dockerfile",
+            "docker-compose.yml",
+            ".env.example",
+        ]
+        for marker in required_markers:
+            marker_path = project_root / marker
+            facts.append(
+                f"- {'OK' if marker_path.exists() else 'MISSING'}: {rel(marker_path)}"
+            )
+
+        workflows_dir = project_root / ".github" / "workflows"
+        if workflows_dir.exists() and workflows_dir.is_dir():
+            workflow_files = sorted(item.name for item in workflows_dir.glob("*.yml"))
+            facts.append(
+                f"- CI workflows: {', '.join(workflow_files) if workflow_files else 'none'}"
+            )
+        else:
+            facts.append("- CI workflows: directory missing")
+
+        requirements_path = project_root / "requirements.txt"
+        if requirements_path.exists():
+            content = requirements_path.read_text(encoding="utf-8", errors="replace")
+            non_empty = [
+                line.strip()
+                for line in content.splitlines()
+                if line.strip() and not line.strip().startswith("#")
+            ]
+            unpinned = [
+                line
+                for line in non_empty
+                if "==" not in line and line.startswith("-e ") is False
+            ]
+            facts.append(f"- requirements entries: {len(non_empty)}")
+            facts.append(f"- requirements non pinned entries: {len(unpinned)}")
+
+        workspace_tool_path = project_root / "assistant" / "tools" / "workspace.py"
+        if workspace_tool_path.exists():
+            ws_content = workspace_tool_path.read_text(encoding="utf-8", errors="replace")
+            has_safe_path = "_safe_path(" in ws_content
+            has_relative_check = "is_relative_to" in ws_content
+            has_validate_command = "_validate_command(" in ws_content
+            facts.append(f"- workspace path guard (_safe_path): {'yes' if has_safe_path else 'no'}")
+            facts.append(f"- workspace relative guard (is_relative_to): {'yes' if has_relative_check else 'no'}")
+            facts.append(f"- workspace command validation: {'yes' if has_validate_command else 'no'}")
+        else:
+            facts.append("- workspace tools file not found for command/path guard checks")
+
+        tests_dir = project_root / "tests"
+        if tests_dir.exists() and tests_dir.is_dir():
+            test_files = [path for path in tests_dir.rglob("test_*.py")]
+            facts.append(f"- tests directory: yes ({len(test_files)} test files)")
+        else:
+            facts.append("- tests directory: no")
+
+        logging_cfg = project_root / "assistant" / "logging_config.py"
+        if logging_cfg.exists():
+            log_content = logging_cfg.read_text(encoding="utf-8", errors="replace")
+            looks_json = "json" in log_content.lower() and "formatter" in log_content.lower()
+            facts.append(f"- structured logging hint: {'yes' if looks_json else 'no/unknown'}")
+        else:
+            facts.append("- logging config file: missing")
+
+        return "\n".join(facts)
 
     def _build_initial_context(self, objective: str) -> str:
         instructions = self.workspace_tools.read_file("AGENTS.md", max_chars=6000)
