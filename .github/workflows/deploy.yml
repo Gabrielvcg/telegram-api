@@ -146,12 +146,6 @@ jobs:
                 defaultTo: "gabriel",
                 dmPolicy: "allowlist",
                 allowFrom,
-                dm: {
-                  enabled: true,
-                  policy: "allowlist",
-                  allowFrom,
-                  replyToMode: "off"
-                },
                 streaming: {
                   mode: "off"
                 },
