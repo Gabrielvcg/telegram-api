@@ -101,13 +101,16 @@ jobs:
               echo '=== sessions ==='
               docker compose exec -T openclaw-gateway sh -lc 'openclaw sessions list 2>/dev/null || true'
               echo
+              echo '=== routing schema excerpts ==='
+              docker compose exec -T openclaw-gateway sh -lc 'openclaw config schema 2>/dev/null | sed -n "20880,21280p"; echo "----"; openclaw config schema 2>/dev/null | sed -n "22480,23080p"; echo "----"; openclaw config schema 2>/dev/null | sed -n "38260,39240p"' || true
+              echo
               echo '=== telegram ingress files ==='
               docker compose exec -T openclaw-gateway sh -lc 'find /home/node/.openclaw/telegram -maxdepth 5 -type f -printf "%TY-%Tm-%Td %TH:%TM:%TS %p\n" 2>/dev/null | sort | tail -n 80 || true'
               echo
               echo '=== latest session content ==='
               docker compose exec -T openclaw-gateway sh -lc '
                 session_dir=/home/node/.openclaw/agents/gabriel/sessions
-                latest=$(find "$session_dir" -maxdepth 1 -type f \( -name "*.jsonl" -o -name "sessions.json" \) -printf "%T@ %p\n" 2>/dev/null | sort -n | tail -n 1 | cut -d" " -f2-)
+                latest=$(find "$session_dir" -maxdepth 1 -type f -name "*.jsonl" -printf "%T@ %p\n" 2>/dev/null | sort -n | tail -n 1 | cut -d" " -f2-)
                 if [ -n "$latest" ] && [ -f "$latest" ]; then
                   echo "--- $latest"
                   tail -n 120 "$latest" | sed -E "s/(\"(botToken|token|apiKey|secret|password|authorization)\"[[:space:]]*:[[:space:]]*\")[^\"]+/\1***REDACTED***/Ig"
