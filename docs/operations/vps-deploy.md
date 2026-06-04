@@ -67,7 +67,9 @@ On every push to `main`, or on manual workflow dispatch:
 6. `docker compose up -d` starts the Gateway.
 7. The workflow verifies `/healthz`.
 
-Existing `config/openclaw.json` is not overwritten. A fresh generated candidate is stored as `config/openclaw.generated.json` so local runtime customizations survive deploys.
+Existing `config/openclaw.json` is backed up under `backups/` and then replaced by the generated config so deploys keep the runtime deterministic.
+
+Telegram streaming is disabled in the generated config because progress drafts can occasionally fail to finalize in Telegram. The default delivery mode favors receiving the final answer reliably over live progress labels.
 
 ## Health And Logs
 

@@ -116,15 +116,7 @@ jobs:
                 dmPolicy: "allowlist",
                 allowFrom,
                 streaming: {
-                  mode: "progress",
-                  progress: {
-                    toolProgress: true,
-                    commandText: "status"
-                  },
-                  preview: {
-                    toolProgress: true,
-                    commandText: "status"
-                  }
+                  mode: "off"
                 },
                 groups: {}
               }

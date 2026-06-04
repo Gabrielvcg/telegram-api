@@ -23,6 +23,7 @@ Telegram text/audio
 - Readiness: `http://127.0.0.1:18789/readyz`
 - Telegram is configured with direct-message allowlist access.
 - Voice notes are handled by OpenClaw media audio understanding.
+- Telegram streaming is disabled by default so the chat receives final answers reliably instead of progress drafts.
 
 ## Local Files
 
