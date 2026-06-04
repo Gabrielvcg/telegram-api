@@ -49,10 +49,13 @@ jobs:
             -o ServerAliveInterval=10 \
             -o ServerAliveCountMax=6 \
             -o StrictHostKeyChecking=accept-new \
-            "$VPS_USER@$VPS_HOST" "
+            "$VPS_USER@$VPS_HOST" \
+            bash -s -- "$VPS_DEPLOY_PATH" "$OPS_ACTION" <<'REMOTE'
             set -eu
-            cd '$VPS_DEPLOY_PATH'
-            case '$OPS_ACTION' in
+            deploy_path="$1"
+            ops_action="$2"
+            cd "$deploy_path"
+            case "$ops_action" in
               logs)
                 docker compose ps
                 docker compose logs --tail=250 openclaw-gateway
@@ -87,8 +90,8 @@ jobs:
                 docker compose ps
                 ;;
               *)
-                echo 'Unknown action: $OPS_ACTION'
+                echo "Unknown action: $ops_action"
                 exit 1
                 ;;
             esac
-            "
+            REMOTE
