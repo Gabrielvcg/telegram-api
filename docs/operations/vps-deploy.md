@@ -42,7 +42,7 @@ Variables:
 - `VPS_USER`: SSH user used for deployment.
 - `VPS_DEPLOY_PATH`: recommended `/opt/openclaw-assistant`.
 - `OPENCLAW_TELEGRAM_ALLOW_FROM`: Gabriel's numeric Telegram user ID.
-- `OPENCLAW_MODEL`: default model, for example `anthropic/claude-sonnet-4-5`.
+- `OPENCLAW_MODEL`: default model, for example `anthropic/claude-sonnet-4-6`.
 - `OPENCLAW_IMAGE`: optional image override, default `ghcr.io/openclaw/openclaw:latest`.
 
 Secrets:

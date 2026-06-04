@@ -55,7 +55,7 @@ jobs:
           OPENCLAW_TELEGRAM_ALLOW_FROM=$allow_from
           ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
           OPENAI_API_KEY=$OPENAI_API_KEY
-          OPENCLAW_MODEL=${OPENCLAW_MODEL:-anthropic/claude-sonnet-4-5}
+          OPENCLAW_MODEL=${OPENCLAW_MODEL:-anthropic/claude-sonnet-4-6}
           EOF
 
           node <<'NODE'
@@ -69,7 +69,7 @@ jobs:
 
           const allowFrom = splitList(process.env.OPENCLAW_TELEGRAM_ALLOW_FROM || process.env.LEGACY_ALLOWED_USER_IDS);
           const ownerAllowFrom = allowFrom.map((id) => id.startsWith("telegram:") ? id : `telegram:${id}`);
-          const model = process.env.OPENCLAW_MODEL || "anthropic/claude-sonnet-4-5";
+          const model = process.env.OPENCLAW_MODEL || "anthropic/claude-sonnet-4-6";
 
           const config = {
             logging: { level: "info" },
@@ -88,6 +88,9 @@ jobs:
             },
             agents: {
               defaults: {
+                models: {
+                  [model]: { alias: "primary" }
+                },
                 model: { primary: model },
                 workspace: "~/.openclaw/workspace",
                 thinkingDefault: "high",
@@ -189,16 +192,16 @@ jobs:
 
               mv .env.deploy .env
               chmod 600 .env
-              if [ ! -f config/openclaw.json ]; then
-                mv openclaw.json.deploy config/openclaw.json
-              else
-                cp openclaw.json.deploy config/openclaw.generated.json
-                rm -f openclaw.json.deploy
+              if [ -f config/openclaw.json ]; then
+                backup_name=\"backups/openclaw-json-\$(date +%Y%m%d-%H%M%S).json\"
+                cp config/openclaw.json \"\$backup_name\"
               fi
+              mv openclaw.json.deploy config/openclaw.json
               chmod 600 config/openclaw.json || true
               docker compose pull
               docker compose up -d --remove-orphans
               docker compose ps
+              docker compose logs --tail=80 openclaw-gateway || true
               docker image prune -f
               "
           }

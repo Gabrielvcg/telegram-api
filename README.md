@@ -43,7 +43,7 @@ Required variables:
 - `VPS_USER`
 - `VPS_DEPLOY_PATH` (recommended: `/opt/openclaw-assistant`)
 - `OPENCLAW_TELEGRAM_ALLOW_FROM` (your numeric Telegram user ID)
-- `OPENCLAW_MODEL` (default: `anthropic/claude-sonnet-4-5`)
+- `OPENCLAW_MODEL` (default: `anthropic/claude-sonnet-4-6`)
 
 Required secrets:
 
