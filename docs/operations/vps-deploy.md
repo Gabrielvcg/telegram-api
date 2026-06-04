@@ -42,7 +42,7 @@ Variables:
 - `VPS_USER`: SSH user used for deployment.
 - `VPS_DEPLOY_PATH`: recommended `/opt/openclaw-assistant`.
 - `OPENCLAW_TELEGRAM_ALLOW_FROM`: Gabriel's numeric Telegram user ID.
-- `OPENCLAW_MODEL`: default model, for example `anthropic/claude-sonnet-4-6`.
+- `OPENCLAW_MODEL`: default model, recommended `anthropic/claude-haiku-4-5` for daily low-cost use.
 - `OPENCLAW_IMAGE`: optional image override, default `ghcr.io/openclaw/openclaw:latest`.
 
 Secrets:
@@ -102,8 +102,9 @@ http://127.0.0.1:18789
 1. DM the Telegram bot.
 2. Confirm only the allowlisted user can use it.
 3. Send a text request.
-4. Send a voice note.
-5. Ask it to create or inspect a file in the workspace.
+4. Ask it to create or inspect a file in the workspace.
+
+Voice notes are intentionally disabled in the default generated config. Enable them only after configuring a cheap STT provider such as OpenAI transcription or another dedicated speech-to-text backend.
 
 If Telegram does not respond:
 

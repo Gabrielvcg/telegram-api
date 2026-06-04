@@ -55,7 +55,7 @@ jobs:
           OPENCLAW_TELEGRAM_ALLOW_FROM=$allow_from
           ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
           OPENAI_API_KEY=$OPENAI_API_KEY
-          OPENCLAW_MODEL=${OPENCLAW_MODEL:-anthropic/claude-sonnet-4-6}
+          OPENCLAW_MODEL=${OPENCLAW_MODEL:-anthropic/claude-haiku-4-5}
           EOF
 
           node <<'NODE'
@@ -69,7 +69,7 @@ jobs:
 
           const allowFrom = splitList(process.env.OPENCLAW_TELEGRAM_ALLOW_FROM || process.env.LEGACY_ALLOWED_USER_IDS);
           const ownerAllowFrom = allowFrom.map((id) => id.startsWith("telegram:") ? id : `telegram:${id}`);
-          const model = process.env.OPENCLAW_MODEL || "anthropic/claude-sonnet-4-6";
+          const model = process.env.OPENCLAW_MODEL || "anthropic/claude-haiku-4-5";
 
           const config = {
             logging: { level: "info" },
@@ -89,11 +89,14 @@ jobs:
             agents: {
               defaults: {
                 models: {
-                  [model]: { alias: "primary" }
+                  "anthropic/claude-haiku-4-5": { alias: "haiku" },
+                  "anthropic/claude-sonnet-4-6": { alias: "sonnet" }
                 },
                 model: { primary: model },
                 workspace: "~/.openclaw/workspace",
-                thinkingDefault: "high",
+                thinkingDefault: "low",
+                contextTokens: 24000,
+                maxConcurrent: 1,
                 timeoutSeconds: 1800,
                 heartbeat: { every: "0m" }
               },
@@ -129,8 +132,8 @@ jobs:
             tools: {
               media: {
                 audio: {
-                  enabled: true,
-                  echoTranscript: true,
+                  enabled: false,
+                  echoTranscript: false,
                   maxBytes: 20971520
                 }
               }

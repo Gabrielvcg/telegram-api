@@ -43,7 +43,7 @@ Required variables:
 - `VPS_USER`
 - `VPS_DEPLOY_PATH` (recommended: `/opt/openclaw-assistant`)
 - `OPENCLAW_TELEGRAM_ALLOW_FROM` (your numeric Telegram user ID)
-- `OPENCLAW_MODEL` (default: `anthropic/claude-sonnet-4-6`)
+- `OPENCLAW_MODEL` (default: `anthropic/claude-haiku-4-5` for daily low-cost use)
 
 Required secrets:
 
@@ -92,9 +92,10 @@ After deploy:
 
 1. Send a DM to your Telegram bot.
 2. Ask: `que puedes hacer ahora mismo en este servidor?`
-3. Send a short voice note.
-4. Ask it to create a tiny file in the workspace.
-5. Check progress and final response in Telegram.
+3. Ask it to create a tiny file in the workspace.
+4. Check progress and final response in Telegram.
+
+Voice notes are disabled by default to avoid expensive accidental transcription/model calls. Add a cheap STT provider before enabling audio again.
 
 ## Security Notes
 
