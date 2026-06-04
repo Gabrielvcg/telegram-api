@@ -67,6 +67,9 @@ jobs:
               echo '=== recent gateway logs ==='
               docker compose logs --since=20m openclaw-gateway
               echo
+              echo '=== persisted openclaw logs ==='
+              docker compose exec -T openclaw-gateway sh -lc 'ls -la /tmp/openclaw /home/node/.openclaw/logs 2>/dev/null || true; for f in /tmp/openclaw/openclaw*.log /home/node/.openclaw/logs/*.log; do [ -f "$f" ] && { echo "--- $f"; tail -n 120 "$f"; }; done' || true
+              echo
               echo '=== sanitized environment ==='
               if [ -f .env ]; then
                 sed -E 's/^(.*(TOKEN|KEY|SECRET|PASSWORD).*)=.*/\1=***REDACTED***/' .env
@@ -77,8 +80,14 @@ jobs:
                 sed -E 's/("(botToken|token|apiKey|secret|password)"[[:space:]]*:[[:space:]]*")[^"]+/\1***REDACTED***/Ig' config/openclaw.json
               fi
               echo
+              echo '=== config health ==='
+              docker compose exec -T openclaw-gateway sh -lc 'for f in /home/node/.openclaw/logs/config-health.json /home/node/.openclaw/openclaw.generated.json /home/node/.openclaw/openclaw.json.last-good; do [ -f "$f" ] && { echo "--- $f"; sed -E "s/(\"(botToken|token|apiKey|secret|password)\"[[:space:]]*:[[:space:]]*\")[^\"]+/\1***REDACTED***/Ig" "$f"; }; done' || true
+              echo
+              echo '=== live schema/session diagnostics ==='
+              docker compose exec -T openclaw-gateway sh -lc 'openclaw config schema 2>/dev/null | grep -nE "dmScope|channels.telegram|streaming|allowFrom|activation" | head -n 120 || true; openclaw channels status 2>/dev/null || true; openclaw sessions list 2>/dev/null | head -n 120 || true' || true
+              echo
               echo '=== workspace/session files ==='
-              docker compose exec -T openclaw-gateway sh -lc 'pwd; id; find /home/node/.openclaw -maxdepth 3 -type f | tail -n 80' || true
+              docker compose exec -T openclaw-gateway sh -lc 'pwd; id; find /home/node/.openclaw -maxdepth 6 -type f | sort | tail -n 160' || true
               ;;
             restart)
               docker compose restart openclaw-gateway
