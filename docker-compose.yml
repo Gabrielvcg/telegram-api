@@ -1,17 +1,35 @@
 services:
-  telegram-bot:
-    build: .
-    container_name: telegram-bot
+  openclaw-gateway:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
+    container_name: openclaw-gateway
     restart: unless-stopped
-    mem_limit: 512m
+    init: true
     env_file:
       - .env
     environment:
-      DATABASE_PATH: /app/data/assistant.db
-      WORKSPACE_ROOT: /app/workspace
-      WORKSPACE_READ_ENABLED: "true"
-      WORKSPACE_WRITE_ENABLED: "true"
-      WORKSPACE_COMMAND_ENABLED: "true"
+      NODE_ENV: production
+      OPENCLAW_DISABLE_BONJOUR: "1"
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "127.0.0.1:${OPENCLAW_GATEWAY_PORT:-18789}:18789"
     volumes:
-      - ./data:/app/data
-      - ./workspace:/app/workspace
+      - ./config:/home/node/.openclaw
+      - ./workspace:/home/node/.openclaw/workspace
+      - ./auth:/home/node/.config/openclaw
+      - ./backups:/backups
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - NET_RAW
+      - NET_ADMIN
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18789/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s

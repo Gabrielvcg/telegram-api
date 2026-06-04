@@ -3,6 +3,9 @@
 !.env.example
 data/
 workspace/
+config/
+auth/
+backups/
 __pycache__/
 *.pyc
 .pytest_cache/

@@ -1,97 +1,156 @@
-# VPS Deployment
+# OpenClaw VPS Deployment Runbook
 
-This project should be deployed through GitHub Actions and GHCR.
+This runbook describes how to deploy and operate OpenClaw on the VPS through GitHub Actions.
 
-## Repository Setup
+## VPS Layout
 
-Create a GitHub repository and push this project to `main`.
+Recommended deploy path:
 
-Never commit `.env`, `data/`, local databases, SSH keys, API tokens, or Telegram tokens.
+```text
+/opt/openclaw-assistant
+```
+
+Persistent folders:
+
+```text
+config/      -> /home/node/.openclaw
+workspace/   -> /home/node/.openclaw/workspace
+auth/        -> /home/node/.config/openclaw
+backups/     -> local backups before risky operations
+.env         -> runtime secrets, mode 600
+```
+
+Prepare the folder manually if needed:
+
+```bash
+sudo mkdir -p /opt/openclaw-assistant
+sudo chown -R vacaro:vacaro /opt/openclaw-assistant
+cd /opt/openclaw-assistant
+mkdir -p config workspace auth backups
+chmod 700 config auth
+chmod 755 workspace backups
+```
 
 ## GitHub Environment
 
-Create a GitHub environment named `prod`.
+Use the existing `prod` environment.
 
-Configure these environment variables:
+Variables:
 
 - `VPS_HOST`: VPS IP or hostname.
 - `VPS_PORT`: SSH port, usually `22`.
 - `VPS_USER`: SSH user used for deployment.
-- `VPS_DEPLOY_PATH`: deployment directory, for example `/opt/telegram-ai-assistant`.
-- `GHCR_USERNAME`: GitHub username or organization account allowed to pull the package.
-- `ALLOWED_USER_IDS`: Telegram user IDs allowed to use the bot.
-- `MODEL_NAME`: Claude model, for example `claude-sonnet-4-5`.
-- `SYSTEM_PROMPT`: assistant base prompt.
-- `HISTORY_LIMIT`: recent message history limit.
-- `MAX_TOKENS`: normal response token budget.
-- `PLAN_MAX_TOKENS`: planning response token budget.
-- `MAX_TELEGRAM_MESSAGE_LENGTH`: Telegram chunk size.
-- `RATE_LIMIT_MESSAGES`: user rate limit count.
-- `RATE_LIMIT_WINDOW_SECONDS`: user rate limit window.
-- `WORKSPACE_READ_ENABLED`: usually `true`.
-- `WORKSPACE_WRITE_ENABLED`: usually `true` for the dedicated workspace.
-- `WORKSPACE_COMMAND_ENABLED`: usually `true` for workspace agent execution.
-- `WORKSPACE_COMMAND_TIMEOUT_SECONDS`: command timeout, for example `120`.
-- `WORKSPACE_MAX_OUTPUT_CHARS`: maximum command output returned to Telegram, for example `6000`.
-- `WORKSPACE_AGENT_MAX_ATTEMPTS`: maximum `/agent` attempts including automatic repair, for example `2`.
-- `WORKSPACE_GIT_AUTHOR_NAME`: Git author name for local agent commits.
-- `WORKSPACE_GIT_AUTHOR_EMAIL`: Git author email for local agent commits.
-- `PROJECT_TELEGRAM_PATH`: workspace path for the bot repository, usually `projects/telegram-ai-assistant`.
-- `PROJECT_TELEGRAM_REPO`: GitHub repository, usually `Gabrielvcg/telegram-api`.
-- `PROJECT_TELEGRAM_BASE_BRANCH`: PR base branch, usually `main`.
-- `LOG_LEVEL`: usually `INFO`.
+- `VPS_DEPLOY_PATH`: recommended `/opt/openclaw-assistant`.
+- `OPENCLAW_TELEGRAM_ALLOW_FROM`: Gabriel's numeric Telegram user ID.
+- `OPENCLAW_MODEL`: default model, for example `anthropic/claude-sonnet-4-5`.
+- `OPENCLAW_IMAGE`: optional image override, default `ghcr.io/openclaw/openclaw:latest`.
 
-Configure these environment secrets:
+Secrets:
 
-- `VPS_SSH_KEY`: private SSH key with access to the VPS.
-- `GHCR_TOKEN`: GitHub personal access token with `read:packages`, required if the GHCR package is private.
-- `TELEGRAM_BOT_TOKEN`: Telegram bot token.
-- `ANTHROPIC_API_KEY`: Anthropic API key.
-- `PROJECT_TELEGRAM_TOKEN`: fine-grained GitHub PAT limited to the bot repository with `Contents: Read and write` and `Pull requests: Read and write`.
+- `VPS_SSH_KEY`: private SSH key with VPS access.
+- `TELEGRAM_BOT_TOKEN`: BotFather token.
+- `ANTHROPIC_API_KEY`: Anthropic provider key.
+- `OPENCLAW_GATEWAY_TOKEN`: recommended stable Gateway UI/API token.
+- `OPENAI_API_KEY`: optional for OpenAI/Codex runtimes.
 
-The workflow uses `GITHUB_TOKEN` to push the Docker image to GHCR.
-
-## VPS Preparation
-
-On the VPS, create the deployment folder:
-
-```bash
-sudo mkdir -p /opt/telegram-ai-assistant
-sudo chown -R vacaro:vacaro /opt/telegram-ai-assistant
-cd /opt/telegram-ai-assistant
-mkdir -p data workspace
-chmod 755 data workspace
-```
-
-The workflow creates `/opt/telegram-ai-assistant/.env` from the GitHub `prod` environment and sets it to mode `600`.
-
-Install Docker and Docker Compose on the VPS before the first deploy.
+If `OPENCLAW_GATEWAY_TOKEN` is missing, the deploy workflow generates or preserves one on the VPS. Add the secret later if you want a stable known value from GitHub.
 
 ## Deployment Flow
 
-On every push to `main`, GitHub Actions will:
+On every push to `main`, or on manual workflow dispatch:
 
-1. Build the Docker image.
-2. Push it to GHCR.
-3. Copy `docker-compose.prod.yml` to the VPS as `docker-compose.yml`.
-4. Pull the latest image on the VPS.
-5. Restart the container.
+1. The workflow creates `.env.deploy`.
+2. The workflow creates `openclaw.json.deploy`.
+3. The bundle is copied over SSH.
+4. The VPS creates persistent folders.
+5. `docker compose pull` downloads the OpenClaw image.
+6. `docker compose up -d` starts the Gateway.
+7. The workflow verifies `/healthz`.
 
-Manual deploys can be triggered from GitHub Actions with `Deploy VPS -> Run workflow`.
+Existing `config/openclaw.json` is not overwritten. A fresh generated candidate is stored as `config/openclaw.generated.json` so local runtime customizations survive deploys.
 
-## Useful VPS Commands
+## Health And Logs
 
 ```bash
-cd /opt/telegram-ai-assistant
+cd /opt/openclaw-assistant
 docker compose ps
-docker logs -f telegram-bot
-docker compose pull
-docker compose up -d
+docker compose logs -f openclaw-gateway
+curl -fsS http://127.0.0.1:18789/healthz
+curl -fsS http://127.0.0.1:18789/readyz
+```
+
+The Gateway UI is bound to localhost:
+
+```text
+http://127.0.0.1:18789
+```
+
+Use an SSH tunnel from your machine:
+
+```bash
+ssh -L 18789:127.0.0.1:18789 vacaro@<VPS_HOST>
+```
+
+Then open:
+
+```text
+http://127.0.0.1:18789
+```
+
+## Telegram Test
+
+1. DM the Telegram bot.
+2. Confirm only the allowlisted user can use it.
+3. Send a text request.
+4. Send a voice note.
+5. Ask it to create or inspect a file in the workspace.
+
+If Telegram does not respond:
+
+```bash
+cd /opt/openclaw-assistant
+docker compose logs --tail=200 openclaw-gateway
+```
+
+Check for:
+
+- invalid Telegram token,
+- allowlist mismatch,
+- model provider auth error,
+- OpenClaw config validation error.
+
+## Backup And Rollback
+
+Before risky changes:
+
+```bash
+cd /opt/openclaw-assistant
+tar -czf backups/openclaw-$(date +%Y%m%d-%H%M%S).tgz config workspace auth .env docker-compose.yml
+```
+
+Rollback to a previous repository version:
+
+```bash
+git revert <commit>
+git push origin main
+```
+
+Or on the VPS, stop OpenClaw:
+
+```bash
+cd /opt/openclaw-assistant
 docker compose down
 ```
 
-The SQLite database is stored in:
+## Expanding Access
 
-```text
-/opt/telegram-ai-assistant/data/assistant.db
-```
+Start with Telegram + workspace + GitHub. After that works, add host/Docker access deliberately.
+
+Recommended order:
+
+1. Workspace project work.
+2. GitHub auth and PR workflows.
+3. Docker commands for specific project folders.
+4. Host-level operations only with explicit backup and confirmation policy.
+
+Do not mount `/` or the Docker socket into the Gateway until the baseline system is proven useful.

@@ -1,4 +1,4 @@
-name: Deploy VPS
+name: Deploy OpenClaw VPS
 
 on:
   workflow_dispatch:
@@ -6,41 +6,10 @@ on:
     branches:
       - main
 
-env:
-  IMAGE_NAME: ghcr.io/gabrielvcg/telegram-ai-assistant
-
 jobs:
-  build-and-push:
-    name: Build and push image
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
-
   deploy:
-    name: Deploy on VPS
+    name: Deploy OpenClaw on VPS
     runs-on: ubuntu-latest
-    needs: build-and-push
     environment: prod
 
     steps:
@@ -49,99 +18,147 @@ jobs:
 
       - name: Configure SSH
         env:
-          VPS_HOST: ${{ vars.VPS_HOST }}
-          VPS_PORT: ${{ vars.VPS_PORT }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
+      - name: Build deploy bundle
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENCLAW_GATEWAY_TOKEN: ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
+          OPENCLAW_IMAGE: ${{ vars.OPENCLAW_IMAGE }}
+          OPENCLAW_MODEL: ${{ vars.OPENCLAW_MODEL }}
+          OPENCLAW_TELEGRAM_ALLOW_FROM: ${{ vars.OPENCLAW_TELEGRAM_ALLOW_FROM }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          LEGACY_ALLOWED_USER_IDS: ${{ vars.ALLOWED_USER_IDS }}
+        run: |
+          set -euo pipefail
+
+          allow_from="${OPENCLAW_TELEGRAM_ALLOW_FROM:-$LEGACY_ALLOWED_USER_IDS}"
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "Missing required secret: TELEGRAM_BOT_TOKEN"
+            exit 1
+          fi
+          if [ -z "$allow_from" ]; then
+            echo "Missing required variable: OPENCLAW_TELEGRAM_ALLOW_FROM or ALLOWED_USER_IDS"
+            exit 1
+          fi
+
+          cat > .env.deploy << EOF
+          OPENCLAW_IMAGE=${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
+          OPENCLAW_GATEWAY_PORT=18789
+          OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-__PRESERVE_OR_GENERATE__}
+          TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
+          OPENCLAW_TELEGRAM_ALLOW_FROM=$allow_from
+          ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
+          OPENAI_API_KEY=$OPENAI_API_KEY
+          OPENCLAW_MODEL=${OPENCLAW_MODEL:-anthropic/claude-sonnet-4-5}
+          EOF
+
+          node <<'NODE'
+          const fs = require("fs");
+
+          const splitList = (value) =>
+            String(value || "")
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean);
+
+          const allowFrom = splitList(process.env.OPENCLAW_TELEGRAM_ALLOW_FROM || process.env.LEGACY_ALLOWED_USER_IDS);
+          const ownerAllowFrom = allowFrom.map((id) => id.startsWith("telegram:") ? id : `telegram:${id}`);
+          const model = process.env.OPENCLAW_MODEL || "anthropic/claude-sonnet-4-5";
+
+          const config = {
+            logging: { level: "info" },
+            gateway: {
+              mode: "local",
+              bind: "lan",
+              controlUi: {
+                allowedOrigins: [
+                  "http://localhost:18789",
+                  "http://127.0.0.1:18789"
+                ]
+              }
+            },
+            commands: {
+              ownerAllowFrom
+            },
+            agents: {
+              defaults: {
+                model: { primary: model },
+                workspace: "~/.openclaw/workspace",
+                thinkingDefault: "high",
+                timeoutSeconds: 1800,
+                heartbeat: { every: "0m" }
+              },
+              list: [
+                {
+                  id: "gabriel",
+                  default: true,
+                  groupChat: {
+                    mentionPatterns: ["@openclaw", "openclaw", "gabriel"]
+                  }
+                }
+              ]
+            },
+            channels: {
+              telegram: {
+                enabled: true,
+                dmPolicy: "allowlist",
+                allowFrom,
+                streaming: {
+                  mode: "progress",
+                  progress: {
+                    toolProgress: true,
+                    commandText: "status"
+                  },
+                  preview: {
+                    toolProgress: true,
+                    commandText: "status"
+                  }
+                },
+                groups: {}
+              }
+            },
+            tools: {
+              media: {
+                audio: {
+                  enabled: true,
+                  echoTranscript: true,
+                  maxBytes: 20971520
+                }
+              }
+            },
+            session: {
+              scope: "per-sender",
+              resetTriggers: ["/new", "/reset"],
+              reset: {
+                mode: "daily",
+                atHour: 4,
+                idleMinutes: 10080
+              }
+            }
+          };
+
+          fs.writeFileSync("openclaw.json.deploy", JSON.stringify(config, null, 2) + "\n");
+          NODE
+
+          tar -czf .deploy-bundle.tgz docker-compose.prod.yml .env.deploy openclaw.json.deploy
+
       - name: Deploy bundle on VPS
         env:
-          ALLOWED_USER_IDS: ${{ vars.ALLOWED_USER_IDS }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GHCR_USERNAME: ${{ vars.GHCR_USERNAME }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-          HISTORY_LIMIT: ${{ vars.HISTORY_LIMIT }}
-          LOG_LEVEL: ${{ vars.LOG_LEVEL }}
-          MAX_TELEGRAM_MESSAGE_LENGTH: ${{ vars.MAX_TELEGRAM_MESSAGE_LENGTH }}
-          MAX_TOKENS: ${{ vars.MAX_TOKENS }}
-          MODEL_NAME: ${{ vars.MODEL_NAME }}
-          PLAN_MAX_TOKENS: ${{ vars.PLAN_MAX_TOKENS }}
-          PROJECT_TELEGRAM_BASE_BRANCH: ${{ vars.PROJECT_TELEGRAM_BASE_BRANCH }}
-          PROJECT_TELEGRAM_BASE_BRANCH_SECRET: ${{ secrets.PROJECT_TELEGRAM_BASE_BRANCH }}
-          PROJECT_TELEGRAM_PATH: ${{ vars.PROJECT_TELEGRAM_PATH }}
-          PROJECT_TELEGRAM_PATH_SECRET: ${{ secrets.PROJECT_TELEGRAM_PATH }}
-          PROJECT_TELEGRAM_REPO: ${{ vars.PROJECT_TELEGRAM_REPO }}
-          PROJECT_TELEGRAM_REPO_SECRET: ${{ secrets.PROJECT_TELEGRAM_REPO }}
-          PROJECT_TELEGRAM_TOKEN: ${{ secrets.PROJECT_TELEGRAM_TOKEN }}
-          RATE_LIMIT_MESSAGES: ${{ vars.RATE_LIMIT_MESSAGES }}
-          RATE_LIMIT_WINDOW_SECONDS: ${{ vars.RATE_LIMIT_WINDOW_SECONDS }}
-          SYSTEM_PROMPT: ${{ vars.SYSTEM_PROMPT }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           VPS_DEPLOY_PATH: ${{ vars.VPS_DEPLOY_PATH }}
           VPS_HOST: ${{ vars.VPS_HOST }}
           VPS_PORT: ${{ vars.VPS_PORT }}
           VPS_USER: ${{ vars.VPS_USER }}
-          WORKSPACE_READ_ENABLED: ${{ vars.WORKSPACE_READ_ENABLED }}
-          WORKSPACE_COMMAND_ENABLED: ${{ vars.WORKSPACE_COMMAND_ENABLED }}
-          WORKSPACE_COMMAND_TIMEOUT_SECONDS: ${{ vars.WORKSPACE_COMMAND_TIMEOUT_SECONDS }}
-          WORKSPACE_AGENT_MAX_ATTEMPTS: ${{ vars.WORKSPACE_AGENT_MAX_ATTEMPTS }}
-          WORKSPACE_GIT_AUTHOR_EMAIL: ${{ vars.WORKSPACE_GIT_AUTHOR_EMAIL }}
-          WORKSPACE_GIT_AUTHOR_NAME: ${{ vars.WORKSPACE_GIT_AUTHOR_NAME }}
-          WORKSPACE_MAX_OUTPUT_CHARS: ${{ vars.WORKSPACE_MAX_OUTPUT_CHARS }}
-          WORKSPACE_WRITE_ENABLED: ${{ vars.WORKSPACE_WRITE_ENABLED }}
         run: |
-          required_vars=(
-            "ANTHROPIC_API_KEY"
-            "TELEGRAM_BOT_TOKEN"
-            "ALLOWED_USER_IDS"
-          )
+          set -euo pipefail
 
-          for var_name in "${required_vars[@]}"; do
-            if [ -z "${!var_name}" ]; then
-              echo "Missing required production environment value: $var_name"
-              exit 1
-            fi
-          done
-
-          umask 077
-          cat > .env.deploy << EOF
-          TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
-          ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
-          MODEL_NAME=${MODEL_NAME:-claude-sonnet-4-5}
-          ALLOWED_USER_IDS=$ALLOWED_USER_IDS
-          SYSTEM_PROMPT=${SYSTEM_PROMPT:-Eres el asistente personal de Gabriel. Responde siempre en espanol salvo que te hablen en otro idioma. Se tecnico, util y conciso.}
-          DATABASE_PATH=/app/data/assistant.db
-          HISTORY_LIMIT=${HISTORY_LIMIT:-12}
-          MAX_TOKENS=${MAX_TOKENS:-1200}
-          PLAN_MAX_TOKENS=${PLAN_MAX_TOKENS:-2200}
-          MAX_TELEGRAM_MESSAGE_LENGTH=${MAX_TELEGRAM_MESSAGE_LENGTH:-3900}
-          RATE_LIMIT_MESSAGES=${RATE_LIMIT_MESSAGES:-20}
-          RATE_LIMIT_WINDOW_SECONDS=${RATE_LIMIT_WINDOW_SECONDS:-60}
-          WORKSPACE_ROOT=/app/workspace
-          WORKSPACE_READ_ENABLED=${WORKSPACE_READ_ENABLED:-true}
-          WORKSPACE_WRITE_ENABLED=${WORKSPACE_WRITE_ENABLED:-true}
-          WORKSPACE_COMMAND_ENABLED=${WORKSPACE_COMMAND_ENABLED:-true}
-          WORKSPACE_COMMAND_TIMEOUT_SECONDS=${WORKSPACE_COMMAND_TIMEOUT_SECONDS:-120}
-          WORKSPACE_MAX_OUTPUT_CHARS=${WORKSPACE_MAX_OUTPUT_CHARS:-6000}
-          WORKSPACE_AGENT_MAX_ATTEMPTS=${WORKSPACE_AGENT_MAX_ATTEMPTS:-2}
-          WORKSPACE_GIT_AUTHOR_NAME=${WORKSPACE_GIT_AUTHOR_NAME:-Telegram AI Assistant}
-          WORKSPACE_GIT_AUTHOR_EMAIL=${WORKSPACE_GIT_AUTHOR_EMAIL:-telegram-ai-assistant@users.noreply.github.com}
-          PROJECT_TELEGRAM_PATH=${PROJECT_TELEGRAM_PATH:-$PROJECT_TELEGRAM_PATH_SECRET}
-          PROJECT_TELEGRAM_REPO=${PROJECT_TELEGRAM_REPO:-$PROJECT_TELEGRAM_REPO_SECRET}
-          PROJECT_TELEGRAM_BASE_BRANCH=${PROJECT_TELEGRAM_BASE_BRANCH:-$PROJECT_TELEGRAM_BASE_BRANCH_SECRET}
-          PROJECT_TELEGRAM_PATH=${PROJECT_TELEGRAM_PATH:-projects/telegram-ai-assistant}
-          PROJECT_TELEGRAM_REPO=${PROJECT_TELEGRAM_REPO:-Gabrielvcg/telegram-api}
-          PROJECT_TELEGRAM_BASE_BRANCH=${PROJECT_TELEGRAM_BASE_BRANCH:-main}
-          PROJECT_TELEGRAM_TOKEN=$PROJECT_TELEGRAM_TOKEN
-          LOG_LEVEL=${LOG_LEVEL:-INFO}
-          EOF
-
-          printf '%s' "$GHCR_USERNAME" > .ghcr_username
-          printf '%s' "$GHCR_TOKEN" > .ghcr_token
-          tar -czf .deploy-bundle.tgz docker-compose.prod.yml .env.deploy .ghcr_username .ghcr_token
+          : "${VPS_DEPLOY_PATH:=/opt/openclaw-assistant}"
+          : "${VPS_PORT:=22}"
 
           deploy_once() {
             cat .deploy-bundle.tgz | ssh \
@@ -153,30 +170,76 @@ jobs:
               -o ServerAliveCountMax=6 \
               -o StrictHostKeyChecking=accept-new \
               "$VPS_USER@$VPS_HOST" "
-              set -e
-              mkdir -p '$VPS_DEPLOY_PATH' '$VPS_DEPLOY_PATH/data' '$VPS_DEPLOY_PATH/workspace'
+              set -eu
+              mkdir -p '$VPS_DEPLOY_PATH' '$VPS_DEPLOY_PATH/config' '$VPS_DEPLOY_PATH/workspace' '$VPS_DEPLOY_PATH/auth' '$VPS_DEPLOY_PATH/backups'
               cd '$VPS_DEPLOY_PATH'
               tar -xzf -
               mv docker-compose.prod.yml docker-compose.yml
+
+              if grep -q '^OPENCLAW_GATEWAY_TOKEN=__PRESERVE_OR_GENERATE__$' .env.deploy; then
+                existing_token=''
+                if [ -f .env ]; then
+                  existing_token=\$(grep '^OPENCLAW_GATEWAY_TOKEN=' .env | tail -n 1 | cut -d= -f2- || true)
+                fi
+                if [ -z \"\$existing_token\" ] || [ \"\$existing_token\" = '__PRESERVE_OR_GENERATE__' ]; then
+                  existing_token=\$(openssl rand -hex 32)
+                fi
+                sed -i \"s/^OPENCLAW_GATEWAY_TOKEN=.*/OPENCLAW_GATEWAY_TOKEN=\$existing_token/\" .env.deploy
+              fi
+
               mv .env.deploy .env
               chmod 600 .env
-              if [ -s .ghcr_token ] && [ -s .ghcr_username ]; then
-                cat .ghcr_token | docker login ghcr.io -u \"\$(cat .ghcr_username)\" --password-stdin
+              if [ ! -f config/openclaw.json ]; then
+                mv openclaw.json.deploy config/openclaw.json
+              else
+                cp openclaw.json.deploy config/openclaw.generated.json
+                rm -f openclaw.json.deploy
               fi
-              rm -f .ghcr_token .ghcr_username
-              IMAGE_NAME='${IMAGE_NAME}:latest' docker compose pull
-              IMAGE_NAME='${IMAGE_NAME}:latest' docker compose up -d
+              chmod 600 config/openclaw.json || true
+              docker compose pull
+              docker compose up -d
+              docker compose ps
               docker image prune -f
               "
           }
 
-          retry_deploy() {
-            for attempt in 1 2 3; do
-              deploy_once && return 0
-              echo "Attempt $attempt failed; retrying in 10 seconds..."
-              sleep 10
-            done
-            deploy_once
-          }
+          for attempt in 1 2 3; do
+            if deploy_once; then
+              break
+            fi
+            echo "Attempt $attempt failed; retrying in 10 seconds..."
+            sleep 10
+          done
 
-          retry_deploy
+      - name: Verify OpenClaw health
+        env:
+          VPS_DEPLOY_PATH: ${{ vars.VPS_DEPLOY_PATH }}
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_PORT: ${{ vars.VPS_PORT }}
+          VPS_USER: ${{ vars.VPS_USER }}
+        run: |
+          set -euo pipefail
+          : "${VPS_DEPLOY_PATH:=/opt/openclaw-assistant}"
+          : "${VPS_PORT:=22}"
+
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -p "$VPS_PORT" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=6 \
+            -o StrictHostKeyChecking=accept-new \
+            "$VPS_USER@$VPS_HOST" "
+            set -e
+            cd '$VPS_DEPLOY_PATH'
+            for attempt in 1 2 3 4 5 6 7 8 9 10; do
+              if curl -fsS http://127.0.0.1:18789/healthz; then
+                exit 0
+              fi
+              docker compose ps
+              sleep 6
+            done
+            docker compose logs --tail=200 openclaw-gateway
+            exit 1
+            "

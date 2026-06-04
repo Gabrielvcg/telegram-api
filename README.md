@@ -1,118 +1,105 @@
-# Telegram AI Assistant
+# OpenClaw VPS Assistant
 
-Bot personal por Telegram con Claude, memoria persistente SQLite y una base de agente para planificar trabajo de software de forma controlada.
+This repository deploys a self-hosted OpenClaw assistant to a VPS.
 
-## Requisitos
+The old Python Telegram bot has been removed. Telegram, audio handling, agent runtime, tools, memory, and model routing now belong to OpenClaw. This repo is only the deployment wrapper: Docker Compose, GitHub Actions, environment documentation, and operations notes.
 
-- Docker
-- Docker Compose
-- Token de Telegram
-- API key de Anthropic
-
-## Configuración
-
-Crea `.env` a partir de `.env.example` y ajusta los valores reales:
-
-```bash
-cp .env.example .env
-```
-
-Variables principales:
-
-- `TELEGRAM_BOT_TOKEN`: token del bot creado con BotFather.
-- `ANTHROPIC_API_KEY`: API key de Anthropic.
-- `MODEL_NAME`: modelo de Claude. Actualmente probado con `claude-sonnet-4-5`.
-- `ALLOWED_USER_IDS`: IDs de Telegram autorizados, separados por comas.
-- `SYSTEM_PROMPT`: personalidad base del asistente.
-- `DATABASE_PATH`: ruta SQLite dentro del contenedor.
-- `HISTORY_LIMIT`: número de mensajes recientes enviados al modelo.
-- `MAX_TOKENS`: presupuesto de respuesta para conversación normal.
-- `PLAN_MAX_TOKENS`: presupuesto de respuesta para `/mode plan` y `/plan`.
-- `RATE_LIMIT_MESSAGES` y `RATE_LIMIT_WINDOW_SECONDS`: límite básico anti-spam.
-- `WORKSPACE_ROOT`: raíz permitida para herramientas de lectura.
-- `WORKSPACE_READ_ENABLED`: activa `/files`, `/read` y `/search`.
-- `WORKSPACE_WRITE_ENABLED`: activa escritura controlada dentro del workspace.
-- `WORKSPACE_COMMAND_ENABLED`: activa ejecución de comandos dentro del workspace.
-- `WORKSPACE_COMMAND_TIMEOUT_SECONDS`: timeout de comandos del workspace.
-- `WORKSPACE_MAX_OUTPUT_CHARS`: salida máxima devuelta por comando.
-- `WORKSPACE_AGENT_MAX_ATTEMPTS`: intentos máximos de `/agent`, incluyendo reparación automática tras fallos.
-- `WORKSPACE_GIT_AUTHOR_NAME` y `WORKSPACE_GIT_AUTHOR_EMAIL`: identidad usada por commits locales del agente.
-- `PROJECT_<NAME>_PATH`, `PROJECT_<NAME>_REPO`, `PROJECT_<NAME>_TOKEN`: perfiles GitHub controlados por proyecto.
-- `PROJECT_<NAME>_BASE_BRANCH`: rama base del perfil GitHub, por defecto `main`.
-
-## Arrancar
-
-```bash
-docker compose up -d --build
-```
-
-SQLite se guarda en `./data`, montado como volumen en `/app/data`.
-
-Las herramientas de workspace usan `./workspace`, montado como `/app/workspace`. No pongas secretos en esa carpeta.
-
-## Ver logs
-
-```bash
-docker logs -f telegram-bot
-```
-
-## Parar
-
-```bash
-docker compose down
-```
-
-## CI/CD Y VPS
-
-El proyecto incluye GitHub Actions para:
-
-- validar Python y construir la imagen Docker en cada push o pull request;
-- publicar la imagen en GHCR al hacer push a `main`;
-- desplegar en un VPS por SSH usando `docker-compose.prod.yml`.
-
-Guia completa:
+## Target Architecture
 
 ```text
-docs/operations/vps-deploy.md
+Telegram text/audio
+  -> OpenClaw Gateway on VPS
+  -> Gabriel agent
+  -> Claude/Codex/OpenAI/OpenClaw tools
+  -> VPS workspace, GitHub, shell, projects
+  -> Telegram progress and final reply
 ```
 
-En produccion, el archivo `.env` se crea manualmente en el VPS y nunca se sube a GitHub.
+## Runtime
 
-## Comandos Del Bot
+- OpenClaw Gateway Docker image: `ghcr.io/openclaw/openclaw:latest`
+- Gateway UI/API: `127.0.0.1:18789`
+- Health: `http://127.0.0.1:18789/healthz`
+- Readiness: `http://127.0.0.1:18789/readyz`
+- Telegram is configured with direct-message allowlist access.
+- Voice notes are handled by OpenClaw media audio understanding.
 
-- `/start`: muestra estado inicial.
-- `/help`: lista comandos.
-- `/mode normal`: conversación directa.
-- `/mode plan`: conversación con prompt de planificación.
-- `/plan <objetivo>`: crea una tarea planificada y revisable.
-- `/approve [id]`: aprueba una tarea registrada.
-- `/cancel [id]`: cancela una tarea.
-- `/status [id]`: muestra el estado de una tarea.
-- `/tasks`: lista tareas recientes.
-- `/reset`: borra memoria conversacional del usuario.
-- `/workspace`: muestra estado y crea `AGENTS.md`, `projects/` y `scratch/` si la escritura está activa.
-- `/review <objetivo>`: análisis del proyecto y mejoras sugeridas sin ejecutar cambios.
-- `/agent <objetivo>`: ejecuta trabajo dentro del workspace. Si un intento falla, puede hacer una pasada automática de reparación; si Claude responde en formato no ejecutable, el bot intenta normalizar el JSON automáticamente.
-- `/git <proyecto> init`: inicializa Git en un proyecto del workspace.
-- `/git <proyecto> status`: muestra estado corto.
-- `/git <proyecto> diff`: muestra solo resumen estadístico de cambios.
-- `/git <proyecto> log`: muestra últimos commits.
-- `/git <proyecto> branch <nombre>`: crea una rama.
-- `/git <proyecto> commit <mensaje>`: commitea cambios del proyecto.
-- `/github list`: lista perfiles GitHub configurados.
-- `/github <perfil> clone`: clona el repo configurado en su ruta del workspace.
-- `/github <perfil> status`: muestra estado Git del perfil.
-- `/github <perfil> push-pr <título>`: pushea la rama actual y crea una PR sin hacer merge.
-- `/run <comando>`: ejecuta un comando dentro del workspace.
-- `/write <ruta> <contenido>`: escribe un archivo dentro del workspace.
-- `/files [ruta]`: lista archivos dentro del workspace permitido.
-- `/read <ruta>`: lee un archivo del workspace permitido.
-- `/search <texto> [ruta]`: busca texto dentro del workspace permitido.
+## Local Files
 
-## Seguridad
+- `docker-compose.yml`: local OpenClaw Compose runtime.
+- `docker-compose.prod.yml`: production Compose runtime copied to the VPS.
+- `.github/workflows/deploy.yml`: GitHub Actions VPS deploy.
+- `.env.example`: local environment template.
+- `docs/operations/vps-deploy.md`: deployment and operations runbook.
 
-El bot falla cerrado si `ALLOWED_USER_IDS` está vacío o mal formado. Las herramientas de workspace solo operan dentro de `WORKSPACE_ROOT`. El proyecto raíz no se monta como workspace para evitar exponer `.env`.
+## Required GitHub Environment
 
-Los comandos de workspace se ejecutan con entorno saneado para no exponer tokens del bot. No hay shell de host ni acceso intencionado fuera de `/app/workspace`.
+Use the existing GitHub environment named `prod`.
 
-Los tokens GitHub se usan solo desde herramientas controladas del bot. No se pasan a Claude, no se guardan en `.git/config` y no deben escribirse en archivos del workspace.
+Required variables:
+
+- `VPS_HOST`
+- `VPS_PORT`
+- `VPS_USER`
+- `VPS_DEPLOY_PATH` (recommended: `/opt/openclaw-assistant`)
+- `OPENCLAW_TELEGRAM_ALLOW_FROM` (your numeric Telegram user ID)
+- `OPENCLAW_MODEL` (default: `anthropic/claude-sonnet-4-5`)
+
+Required secrets:
+
+- `VPS_SSH_KEY`
+- `TELEGRAM_BOT_TOKEN`
+- `ANTHROPIC_API_KEY`
+
+Recommended secret:
+
+- `OPENCLAW_GATEWAY_TOKEN`
+
+Optional secret:
+
+- `OPENAI_API_KEY` if you later enable OpenAI/Codex runtimes.
+
+Legacy variables from the old Python bot can stay in the GitHub environment; the new workflow ignores them.
+
+## Deploy
+
+Push to `main` or run the `Deploy OpenClaw VPS` workflow manually.
+
+The workflow:
+
+1. Generates `.env` and an initial `openclaw.json`.
+2. Copies the deploy bundle to the VPS.
+3. Creates persistent folders.
+4. Runs `docker compose pull`.
+5. Runs `docker compose up -d`.
+6. Checks `/healthz`.
+
+## VPS Commands
+
+```bash
+cd /opt/openclaw-assistant
+docker compose ps
+docker compose logs -f openclaw-gateway
+curl -fsS http://127.0.0.1:18789/healthz
+curl -fsS http://127.0.0.1:18789/readyz
+```
+
+If your `VPS_DEPLOY_PATH` still points to the old path, use that path instead.
+
+## Telegram Smoke Test
+
+After deploy:
+
+1. Send a DM to your Telegram bot.
+2. Ask: `que puedes hacer ahora mismo en este servidor?`
+3. Send a short voice note.
+4. Ask it to create a tiny file in the workspace.
+5. Check progress and final response in Telegram.
+
+## Security Notes
+
+- The Gateway port is bound to `127.0.0.1`, not public internet.
+- Telegram access is allowlisted by numeric user ID.
+- The OpenClaw workspace is persistent and private. Treat it as sensitive.
+- Do not mount the whole host filesystem until the basic Telegram + workspace flow is proven.
+- Host/Docker access should be added deliberately with a specific policy and rollback plan.

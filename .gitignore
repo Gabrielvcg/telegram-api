@@ -5,4 +5,7 @@ __pycache__/
 *.pyc
 data/
 workspace/
+config/
+auth/
+backups/
 .pytest_cache/
