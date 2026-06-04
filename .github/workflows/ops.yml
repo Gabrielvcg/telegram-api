@@ -51,47 +51,47 @@ jobs:
             -o StrictHostKeyChecking=accept-new \
             "$VPS_USER@$VPS_HOST" \
             bash -s -- "$VPS_DEPLOY_PATH" "$OPS_ACTION" <<'REMOTE'
-            set -eu
-            deploy_path="$1"
-            ops_action="$2"
-            cd "$deploy_path"
-            case "$ops_action" in
-              logs)
-                docker compose ps
-                docker compose logs --tail=250 openclaw-gateway
-                ;;
-              debug)
-                echo '=== compose ps ==='
-                docker compose ps
-                echo
-                echo '=== recent gateway logs ==='
-                docker compose logs --since=20m openclaw-gateway
-                echo
-                echo '=== sanitized environment ==='
-                if [ -f .env ]; then
-                  sed -E 's/^(.*(TOKEN|KEY|SECRET|PASSWORD).*)=.*/\1=***REDACTED***/' .env
-                fi
-                echo
-                echo '=== openclaw config ==='
-                if [ -f config/openclaw.json ]; then
-                  sed -E 's/("(botToken|token|apiKey|secret|password)"[[:space:]]*:[[:space:]]*")[^"]+/\1***REDACTED***/Ig' config/openclaw.json
-                fi
-                echo
-                echo '=== workspace/session files ==='
-                docker compose exec -T openclaw-gateway sh -lc 'pwd; id; find /home/node/.openclaw -maxdepth 3 -type f | tail -n 80' || true
-                ;;
-              restart)
-                docker compose restart openclaw-gateway
-                sleep 8
-                docker compose ps
-                docker compose logs --tail=120 openclaw-gateway
-                ;;
-              ps)
-                docker compose ps
-                ;;
-              *)
-                echo "Unknown action: $ops_action"
-                exit 1
-                ;;
-            esac
-            REMOTE
+          set -eu
+          deploy_path="$1"
+          ops_action="$2"
+          cd "$deploy_path"
+          case "$ops_action" in
+            logs)
+              docker compose ps
+              docker compose logs --tail=250 openclaw-gateway
+              ;;
+            debug)
+              echo '=== compose ps ==='
+              docker compose ps
+              echo
+              echo '=== recent gateway logs ==='
+              docker compose logs --since=20m openclaw-gateway
+              echo
+              echo '=== sanitized environment ==='
+              if [ -f .env ]; then
+                sed -E 's/^(.*(TOKEN|KEY|SECRET|PASSWORD).*)=.*/\1=***REDACTED***/' .env
+              fi
+              echo
+              echo '=== openclaw config ==='
+              if [ -f config/openclaw.json ]; then
+                sed -E 's/("(botToken|token|apiKey|secret|password)"[[:space:]]*:[[:space:]]*")[^"]+/\1***REDACTED***/Ig' config/openclaw.json
+              fi
+              echo
+              echo '=== workspace/session files ==='
+              docker compose exec -T openclaw-gateway sh -lc 'pwd; id; find /home/node/.openclaw -maxdepth 3 -type f | tail -n 80' || true
+              ;;
+            restart)
+              docker compose restart openclaw-gateway
+              sleep 8
+              docker compose ps
+              docker compose logs --tail=120 openclaw-gateway
+              ;;
+            ps)
+              docker compose ps
+              ;;
+            *)
+              echo "Unknown action: $ops_action"
+              exit 1
+              ;;
+          esac
+          REMOTE
