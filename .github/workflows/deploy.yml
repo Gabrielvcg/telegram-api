@@ -197,7 +197,7 @@ jobs:
               fi
               chmod 600 config/openclaw.json || true
               docker compose pull
-              docker compose up -d
+              docker compose up -d --remove-orphans
               docker compose ps
               docker image prune -f
               "
