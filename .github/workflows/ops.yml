@@ -11,6 +11,7 @@ on:
         options:
           - logs
           - debug
+          - repair-session
           - restart
           - ps
 
@@ -88,6 +89,26 @@ jobs:
               echo
               echo '=== workspace/session files ==='
               docker compose exec -T openclaw-gateway sh -lc 'pwd; id; find /home/node/.openclaw -maxdepth 6 -type f | sort | tail -n 160' || true
+              ;;
+            repair-session)
+              stamp="$(date +%Y%m%d-%H%M%S)"
+              backup_dir="backups/session-repair-$stamp"
+              mkdir -p "$backup_dir"
+              echo "Backing up current Gabriel session state to $backup_dir"
+              docker compose stop openclaw-gateway
+              if [ -d config/agents/gabriel/sessions ]; then
+                cp -a config/agents/gabriel/sessions "$backup_dir/gabriel-sessions"
+                rm -rf config/agents/gabriel/sessions
+              fi
+              if [ -f config/openclaw.generated.json ]; then
+                cp -a config/openclaw.generated.json "$backup_dir/openclaw.generated.json"
+                rm -f config/openclaw.generated.json
+              fi
+              mkdir -p config/agents/gabriel/sessions
+              docker compose up -d openclaw-gateway
+              sleep 10
+              docker compose ps
+              docker compose logs --tail=160 openclaw-gateway
               ;;
             restart)
               docker compose restart openclaw-gateway

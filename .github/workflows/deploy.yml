@@ -120,6 +120,12 @@ jobs:
                 }
               ]
             },
+            bindings: [
+              {
+                agentId: "gabriel",
+                match: { channel: "telegram" }
+              }
+            ],
             channels: {
               telegram: {
                 enabled: true,
@@ -141,8 +147,7 @@ jobs:
               }
             },
             session: {
-              scope: "per-sender",
-              resetTriggers: ["/new", "/reset"],
+              dmScope: "main",
               reset: {
                 mode: "daily",
                 atHour: 4,
