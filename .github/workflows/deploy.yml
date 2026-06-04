@@ -73,6 +73,16 @@ jobs:
 
           const config = {
             logging: { level: "info" },
+            models: {
+              providers: {
+                anthropic: {
+                  models: [
+                    { id: "claude-haiku-4-5" },
+                    { id: "claude-sonnet-4-6" }
+                  ]
+                }
+              }
+            },
             gateway: {
               mode: "local",
               bind: "lan",
