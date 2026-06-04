@@ -11,6 +11,7 @@ on:
         options:
           - logs
           - debug
+          - trace-session
           - repair-session
           - restart
           - ps
@@ -89,6 +90,32 @@ jobs:
               echo
               echo '=== workspace/session files ==='
               docker compose exec -T openclaw-gateway sh -lc 'pwd; id; find /home/node/.openclaw -maxdepth 6 -type f | sort | tail -n 160' || true
+              ;;
+            trace-session)
+              echo '=== compose ps ==='
+              docker compose ps
+              echo
+              echo '=== channel status ==='
+              docker compose exec -T openclaw-gateway sh -lc 'openclaw channels status 2>/dev/null || true'
+              echo
+              echo '=== sessions ==='
+              docker compose exec -T openclaw-gateway sh -lc 'openclaw sessions list 2>/dev/null || true'
+              echo
+              echo '=== telegram ingress files ==='
+              docker compose exec -T openclaw-gateway sh -lc 'find /home/node/.openclaw/telegram -maxdepth 5 -type f -printf "%TY-%Tm-%Td %TH:%TM:%TS %p\n" 2>/dev/null | sort | tail -n 80 || true'
+              echo
+              echo '=== latest session content ==='
+              docker compose exec -T openclaw-gateway sh -lc '
+                session_dir=/home/node/.openclaw/agents/gabriel/sessions
+                latest=$(find "$session_dir" -maxdepth 1 -type f \( -name "*.jsonl" -o -name "sessions.json" \) -printf "%T@ %p\n" 2>/dev/null | sort -n | tail -n 1 | cut -d" " -f2-)
+                if [ -n "$latest" ] && [ -f "$latest" ]; then
+                  echo "--- $latest"
+                  tail -n 120 "$latest" | sed -E "s/(\"(botToken|token|apiKey|secret|password|authorization)\"[[:space:]]*:[[:space:]]*\")[^\"]+/\1***REDACTED***/Ig"
+                fi
+              ' || true
+              echo
+              echo '=== recent process logs ==='
+              docker compose exec -T openclaw-gateway sh -lc 'for f in /tmp/openclaw/openclaw*.log; do [ -f "$f" ] && tail -n 180 "$f"; done' || true
               ;;
             repair-session)
               stamp="$(date +%Y%m%d-%H%M%S)"
