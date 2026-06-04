@@ -75,7 +75,7 @@ jobs:
                 fi
                 echo
                 echo '=== workspace/session files ==='
-                docker compose exec -T openclaw-gateway sh -lc 'pwd; id; find /home/node/.openclaw -maxdepth 3 -type f | sed "s#^#/container#" | tail -n 80' || true
+                docker compose exec -T openclaw-gateway sh -lc 'pwd; id; find /home/node/.openclaw -maxdepth 3 -type f | tail -n 80' || true
                 ;;
               restart)
                 docker compose restart openclaw-gateway
