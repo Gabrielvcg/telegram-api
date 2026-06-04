@@ -21,7 +21,7 @@ Telegram text/audio
 - Gateway UI/API: `127.0.0.1:18789`
 - Health: `http://127.0.0.1:18789/healthz`
 - Readiness: `http://127.0.0.1:18789/readyz`
-- Telegram is configured with direct-message allowlist access.
+- Telegram direct-message routing is pinned to `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 - Voice notes are handled by OpenClaw media audio understanding.
 - Telegram streaming is disabled by default so the chat receives final answers reliably instead of progress drafts.
 
@@ -101,7 +101,7 @@ Voice notes are disabled by default to avoid expensive accidental transcription/
 ## Security Notes
 
 - The Gateway port is bound to `127.0.0.1`, not public internet.
-- Telegram access is allowlisted by numeric user ID.
+- Telegram DM policy uses `open` as an OpenClaw Telegram workaround, but agent routing is pinned to the numeric user ID in `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 - The OpenClaw workspace is persistent and private. Treat it as sensitive.
 - Do not mount the whole host filesystem until the basic Telegram + workspace flow is proven.
 - Host/Docker access should be added deliberately with a specific policy and rollback plan.

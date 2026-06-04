@@ -71,6 +71,8 @@ Existing `config/openclaw.json` is backed up under `backups/` and then replaced 
 
 Telegram streaming is disabled in the generated config because progress drafts can occasionally fail to finalize in Telegram. The default delivery mode favors receiving the final answer reliably over live progress labels.
 
+Telegram DM policy is generated as `open` with `allowFrom: ["*"]` to avoid OpenClaw Telegram builds that silently drop normal DM text when `dmPolicy: "allowlist"` is used. Agent routing remains pinned to the numeric Telegram user ID from `OPENCLAW_TELEGRAM_ALLOW_FROM`.
+
 ## Health And Logs
 
 ```bash
@@ -102,7 +104,7 @@ http://127.0.0.1:18789
 ## Telegram Test
 
 1. DM the Telegram bot.
-2. Confirm only the allowlisted user can use it.
+2. Confirm the configured numeric Telegram user ID is routed to the agent.
 3. Send a text request.
 4. Ask it to create or inspect a file in the workspace.
 
@@ -118,7 +120,7 @@ docker compose logs --tail=200 openclaw-gateway
 Check for:
 
 - invalid Telegram token,
-- allowlist mismatch,
+- Telegram peer ID or routing mismatch,
 - model provider auth error,
 - OpenClaw config validation error.
 

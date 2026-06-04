@@ -69,6 +69,7 @@ jobs:
 
           const allowFrom = splitList(process.env.OPENCLAW_TELEGRAM_ALLOW_FROM || process.env.LEGACY_ALLOWED_USER_IDS);
           const ownerAllowFrom = allowFrom.map((id) => id.startsWith("telegram:") ? id : `telegram:${id}`);
+          const telegramPeerId = allowFrom[0];
           const model = process.env.OPENCLAW_MODEL || "anthropic/claude-haiku-4-5";
 
           const config = {
@@ -125,27 +126,20 @@ jobs:
                 type: "route",
                 agentId: "gabriel",
                 match: {
-                  channel: "telegram",
-                  peer: {
-                    kind: "direct",
-                    id: allowFrom[0]
-                  }
-                },
-                session: { dmScope: "main" }
-              },
-              {
-                type: "route",
-                agentId: "gabriel",
-                match: { channel: "telegram" },
-                session: { dmScope: "main" }
+                    channel: "telegram",
+                    peer: {
+                      kind: "direct",
+                      id: telegramPeerId
+                    }
+                  },
+                  session: { dmScope: "main" }
               }
             ],
             channels: {
               telegram: {
                 enabled: true,
-                defaultTo: "gabriel",
-                dmPolicy: "allowlist",
-                allowFrom,
+                dmPolicy: "open",
+                allowFrom: ["*"],
                 streaming: {
                   mode: "off"
                 },
