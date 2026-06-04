@@ -122,15 +122,36 @@ jobs:
             },
             bindings: [
               {
+                type: "route",
                 agentId: "gabriel",
-                match: { channel: "telegram" }
+                match: {
+                  channel: "telegram",
+                  peer: {
+                    kind: "direct",
+                    id: allowFrom[0]
+                  }
+                },
+                session: { dmScope: "main" }
+              },
+              {
+                type: "route",
+                agentId: "gabriel",
+                match: { channel: "telegram" },
+                session: { dmScope: "main" }
               }
             ],
             channels: {
               telegram: {
                 enabled: true,
+                defaultTo: "gabriel",
                 dmPolicy: "allowlist",
                 allowFrom,
+                dm: {
+                  enabled: true,
+                  policy: "allowlist",
+                  allowFrom,
+                  replyToMode: "off"
+                },
                 streaming: {
                   mode: "off"
                 },
