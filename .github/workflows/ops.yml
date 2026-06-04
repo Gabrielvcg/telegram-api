@@ -1,0 +1,73 @@
+name: OpenClaw Ops
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Operation to run"
+        required: true
+        default: "logs"
+        type: choice
+        options:
+          - logs
+          - restart
+          - ps
+
+jobs:
+  ops:
+    name: OpenClaw VPS ops
+    runs-on: ubuntu-latest
+    environment: prod
+
+    steps:
+      - name: Configure SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Run operation
+        env:
+          OPS_ACTION: ${{ inputs.action }}
+          VPS_DEPLOY_PATH: ${{ vars.VPS_DEPLOY_PATH }}
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_PORT: ${{ vars.VPS_PORT }}
+          VPS_USER: ${{ vars.VPS_USER }}
+        run: |
+          set -euo pipefail
+          : "${VPS_DEPLOY_PATH:=/opt/telegram-ai-assistant}"
+          : "${VPS_PORT:=22}"
+
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -p "$VPS_PORT" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=6 \
+            -o StrictHostKeyChecking=accept-new \
+            "$VPS_USER@$VPS_HOST" "
+            set -eu
+            cd '$VPS_DEPLOY_PATH'
+            case '$OPS_ACTION' in
+              logs)
+                docker compose ps
+                docker compose logs --tail=250 openclaw-gateway
+                ;;
+              restart)
+                docker compose restart openclaw-gateway
+                sleep 8
+                docker compose ps
+                docker compose logs --tail=120 openclaw-gateway
+                ;;
+              ps)
+                docker compose ps
+                ;;
+              *)
+                echo 'Unknown action: $OPS_ACTION'
+                exit 1
+                ;;
+            esac
+            "
