@@ -88,6 +88,9 @@ jobs:
               echo '=== live schema/session diagnostics ==='
               docker compose exec -T openclaw-gateway sh -lc 'openclaw config schema 2>/dev/null | grep -nE "dmScope|channels.telegram|streaming|allowFrom|activation" | head -n 120 || true; openclaw channels status 2>/dev/null || true; openclaw sessions list 2>/dev/null | head -n 120 || true' || true
               echo
+              echo '=== model status probe ==='
+              docker compose exec -T openclaw-gateway sh -lc 'openclaw models status --agent gabriel --probe 2>/dev/null || openclaw models status --probe 2>/dev/null || true' || true
+              echo
               echo '=== workspace/session files ==='
               docker compose exec -T openclaw-gateway sh -lc 'pwd; id; find /home/node/.openclaw -maxdepth 6 -type f | sort | tail -n 160' || true
               ;;
