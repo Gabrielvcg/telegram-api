@@ -55,7 +55,7 @@ jobs:
           OPENCLAW_TELEGRAM_ALLOW_FROM=$allow_from
           ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
           OPENAI_API_KEY=$OPENAI_API_KEY
-          OPENCLAW_MODEL=${OPENCLAW_MODEL:-anthropic/claude-haiku-4-5}
+          OPENCLAW_MODEL=${OPENCLAW_MODEL:-anthropic/claude-sonnet-4-6}
           EOF
 
           node <<'NODE'
@@ -70,7 +70,11 @@ jobs:
           const allowFrom = splitList(process.env.OPENCLAW_TELEGRAM_ALLOW_FROM || process.env.LEGACY_ALLOWED_USER_IDS);
           const ownerAllowFrom = allowFrom.map((id) => id.startsWith("telegram:") ? id : `telegram:${id}`);
           const telegramPeerId = allowFrom[0];
-          const model = process.env.OPENCLAW_MODEL || "anthropic/claude-haiku-4-5";
+          const requestedModel = process.env.OPENCLAW_MODEL || "anthropic/claude-sonnet-4-6";
+          const unsupportedModelOverrides = {
+            "anthropic/claude-haiku-4-5": "anthropic/claude-sonnet-4-6"
+          };
+          const model = unsupportedModelOverrides[requestedModel] || requestedModel;
 
           const config = {
             logging: { level: "info" },
