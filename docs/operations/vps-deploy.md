@@ -69,7 +69,7 @@ On every push to `main`, or on manual workflow dispatch:
 
 Existing `config/openclaw.json` is backed up under `backups/` and then replaced by the generated config so deploys keep the runtime deterministic.
 
-Anthropic model metadata is left to OpenClaw's bundled provider catalog. Do not add a manual `models.providers.anthropic.models` block unless the runtime schema explicitly requires it, because an incorrect custom model row can make OpenClaw route Claude through the OpenAI Responses API.
+Anthropic model metadata is left to OpenClaw's bundled provider catalog. Do not add a manual `models.providers.anthropic.models` block unless the runtime schema explicitly requires it, because an incorrect custom model row can make OpenClaw route Claude through the OpenAI Responses API. The generated config also avoids `agents.defaults.models` for Claude aliases because that field acts as a model allowlist and can hide bundled catalog entries.
 
 Telegram streaming is disabled in the generated config because progress drafts can occasionally fail to finalize in Telegram. The default delivery mode favors receiving the final answer reliably over live progress labels.
 

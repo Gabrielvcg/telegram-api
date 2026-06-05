@@ -89,10 +89,6 @@ jobs:
             },
             agents: {
               defaults: {
-                models: {
-                  "anthropic/claude-haiku-4-5": { alias: "haiku" },
-                  "anthropic/claude-sonnet-4-6": { alias: "sonnet" }
-                },
                 model: { primary: model },
                 workspace: "~/.openclaw/workspace",
                 thinkingDefault: "low",
