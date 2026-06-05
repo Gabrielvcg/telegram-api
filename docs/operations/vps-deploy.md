@@ -73,6 +73,8 @@ Telegram streaming is disabled in the generated config because progress drafts c
 
 Telegram DM policy is generated as `open` with `allowFrom: ["*"]` to avoid OpenClaw Telegram builds that silently drop normal DM text when `dmPolicy: "allowlist"` is used. Agent routing remains pinned to the numeric Telegram user ID from `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 
+Agent compaction sets `agents.defaults.compaction.reserveTokensFloor` to `20000` so short Telegram turns do not fail with an auto-compaction recovery error after the session has been mapped.
+
 ## Health And Logs
 
 ```bash
@@ -122,6 +124,7 @@ Check for:
 - invalid Telegram token,
 - Telegram peer ID or routing mismatch,
 - model provider auth error,
+- auto-compaction reserve too low,
 - OpenClaw config validation error.
 
 ## Backup And Rollback

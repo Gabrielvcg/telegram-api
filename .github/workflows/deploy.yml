@@ -107,6 +107,9 @@ jobs:
                 workspace: "~/.openclaw/workspace",
                 thinkingDefault: "low",
                 contextTokens: 24000,
+                compaction: {
+                  reserveTokensFloor: 20000
+                },
                 maxConcurrent: 1,
                 timeoutSeconds: 1800,
                 heartbeat: { every: "0m" }
