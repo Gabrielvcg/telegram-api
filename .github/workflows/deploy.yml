@@ -106,7 +106,7 @@ jobs:
                 model: { primary: model },
                 workspace: "~/.openclaw/workspace",
                 thinkingDefault: "low",
-                contextTokens: 24000,
+                contextTokens: 100000,
                 compaction: {
                   reserveTokensFloor: 20000
                 },
