@@ -110,10 +110,17 @@ jobs:
               echo '=== latest session content ==='
               docker compose exec -T openclaw-gateway sh -lc '
                 session_dir=/home/node/.openclaw/agents/gabriel/sessions
-                latest=$(find "$session_dir" -maxdepth 1 -type f -name "*.jsonl" -printf "%T@ %p\n" 2>/dev/null | sort -n | tail -n 1 | cut -d" " -f2-)
+                echo "--- session files"
+                find "$session_dir" -maxdepth 1 -type f -printf "%TY-%Tm-%Td %TH:%TM:%TS %f\n" 2>/dev/null | sort | tail -n 30
+                latest=$(find "$session_dir" -maxdepth 1 -type f -name "*.jsonl" ! -name "*.trajectory.jsonl" -printf "%T@ %p\n" 2>/dev/null | sort -n | tail -n 1 | cut -d" " -f2-)
                 if [ -n "$latest" ] && [ -f "$latest" ]; then
                   echo "--- $latest"
                   tail -n 120 "$latest" | sed -E "s/(\"(botToken|token|apiKey|secret|password|authorization)\"[[:space:]]*:[[:space:]]*\")[^\"]+/\1***REDACTED***/Ig"
+                fi
+                traj=$(find "$session_dir" -maxdepth 1 -type f -name "*.trajectory.jsonl" -printf "%T@ %p\n" 2>/dev/null | sort -n | tail -n 1 | cut -d" " -f2-)
+                if [ -n "$traj" ] && [ -f "$traj" ]; then
+                  echo "--- latest trajectory errors: $traj"
+                  grep -Ei "runtime.error|error|exception|failed|statusCode|anthropic|context-overflow|sendMessage" "$traj" | tail -n 80 || true
                 fi
               ' || true
               echo
