@@ -128,6 +128,25 @@ jobs:
           const secret = /token|apiKey|secret|password|authorization|botToken/i;
           const redact = (value) => JSON.stringify(value, (key, val) => secret.test(key) ? "***REDACTED***" : val);
           const lines = fs.readFileSync(file, "utf8").trim().split(/\n/).filter(Boolean);
+          const pick = (obj, paths) => {
+            const found = [];
+            for (const path of paths) {
+              const keys = path.split(".");
+              let value = obj;
+              for (const key of keys) {
+                if (!value || typeof value !== "object" || !(key in value)) {
+                  value = undefined;
+                  break;
+                }
+                value = value[key];
+              }
+              if (value !== undefined && value !== null && value !== "") {
+                const text = typeof value === "string" ? value : redact(value);
+                found.push(`${path}=${text.replace(/\s+/g, " ").slice(0, 1200)}`);
+              }
+            }
+            return found;
+          };
           for (const line of lines.slice(-220)) {
             let item;
             try {
@@ -140,9 +159,31 @@ jobs:
             const ts = item.timestamp || item.time || item.createdAt || "";
             const role = item.role || item.message?.role || item.delta?.role || item.data?.role || "";
             const status = item.status || item.stopReason || item.error?.message || item.message?.stopReason || "";
-            const parts = [];
+            const parts = pick(item, [
+              "message.content.type",
+              "message.content.name",
+              "message.content.toolName",
+              "message.content.input",
+              "message.content.arguments",
+              "message.content.command",
+              "message.content.result",
+              "message.content.output",
+              "message.content.stdout",
+              "message.content.stderr",
+              "message.content.exitCode",
+              "toolName",
+              "toolCall.name",
+              "toolCall.input",
+              "toolCall.arguments",
+              "toolResult.content",
+              "toolResult.result",
+              "toolResult.output",
+              "toolResult.stdout",
+              "toolResult.stderr",
+              "toolResult.exitCode"
+            ]);
             const visit = (value, path = "") => {
-              if (!value || parts.length >= 8) return;
+              if (!value || parts.length >= 18) return;
               if (typeof value === "string") {
                 const text = value.replace(/\s+/g, " ").trim();
                 if (
