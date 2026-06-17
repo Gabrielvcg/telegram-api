@@ -15,6 +15,7 @@ on:
           - repair-session
           - restart
           - ps
+          - schema
 
 jobs:
   ops:
@@ -244,6 +245,42 @@ jobs:
               ;;
             ps)
               docker compose ps
+              ;;
+            schema)
+              echo '=== schema paths for Telegram/message rendering ==='
+              docker compose exec -T openclaw-gateway sh -lc 'openclaw config schema 2>/dev/null | node -e '"'"'
+                const fs = require("fs");
+                const schema = JSON.parse(fs.readFileSync(0, "utf8"));
+                const needles = /markdown|rich|plain|parse|format|delivery|send|message/i;
+                const interestingPath = /(^|\.)(messages|channels\.telegram|channels\.telegram\.accounts|tools\.codeMode)(\.|$)/i;
+                const seen = new Set();
+                function slim(value) {
+                  if (!value || typeof value !== "object") return value;
+                  const out = {};
+                  for (const key of ["type", "title", "description", "default", "enum", "const", "additionalProperties"]) {
+                    if (Object.prototype.hasOwnProperty.call(value, key)) out[key] = value[key];
+                  }
+                  if (value.anyOf) out.anyOf = value.anyOf.map(slim);
+                  if (value.properties) out.properties = Object.keys(value.properties);
+                  return out;
+                }
+                function walk(node, path = "") {
+                  if (!node || typeof node !== "object") return;
+                  const haystack = `${path} ${node.title || ""} ${node.description || ""}`;
+                  if (interestingPath.test(path) && needles.test(haystack) && !seen.has(path)) {
+                    seen.add(path);
+                    console.log(`--- ${path || "<root>"}`);
+                    console.log(JSON.stringify(slim(node), null, 2));
+                  }
+                  for (const [key, child] of Object.entries(node.properties || {})) {
+                    walk(child, path ? `${path}.${key}` : key);
+                  }
+                  for (const [index, child] of (node.anyOf || []).entries()) {
+                    walk(child, `${path}.anyOf[${index}]`);
+                  }
+                }
+                walk(schema);
+              '"'"'' || true
               ;;
             *)
               echo "Unknown action: $ops_action"
