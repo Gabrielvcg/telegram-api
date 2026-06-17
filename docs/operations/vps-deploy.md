@@ -42,7 +42,7 @@ Variables:
 - `VPS_USER`: SSH user used for deployment.
 - `VPS_DEPLOY_PATH`: recommended `/opt/openclaw-assistant`.
 - `OPENCLAW_TELEGRAM_ALLOW_FROM`: Gabriel's numeric Telegram user ID.
-- `OPENCLAW_MODEL`: default model, recommended `moonshot/kimi-k2.6` for cheaper day-to-day use.
+- `OPENCLAW_MODEL`: default model, recommended `anthropic/claude-haiku-4-5` for cheaper day-to-day use.
 - `OPENCLAW_IMAGE`: optional image override, default `ghcr.io/openclaw/openclaw:latest`.
 
 Secrets:
@@ -50,9 +50,9 @@ Secrets:
 - `VPS_SSH_KEY`: private SSH key with VPS access.
 - `TELEGRAM_BOT_TOKEN`: BotFather token.
 - `ANTHROPIC_API_KEY`: Anthropic provider key.
-- `MOONSHOT_API_KEY`: Moonshot provider key for Kimi models.
 - `OPENCLAW_GATEWAY_TOKEN`: recommended stable Gateway UI/API token.
 - `OPENAI_API_KEY`: optional for OpenAI/Codex runtimes.
+- `MOONSHOT_API_KEY`: optional Moonshot provider key for Kimi models.
 - `KIMI_API_KEY`: optional separate Kimi Coding or Kimi search key. It is not interchangeable with the Moonshot provider key.
 
 If `OPENCLAW_GATEWAY_TOKEN` is missing, the deploy workflow generates or preserves one on the VPS. Add the secret later if you want a stable known value from GitHub.
@@ -73,9 +73,9 @@ Existing `config/openclaw.json` is backed up under `backups/` and then replaced 
 
 Anthropic model metadata is left to OpenClaw's bundled provider catalog. Do not add a manual `models.providers.anthropic.models` block unless the runtime schema explicitly requires it, because an incorrect custom model row can make OpenClaw route Claude through the OpenAI Responses API. The generated config also avoids `agents.defaults.models` for Claude aliases because that field acts as a model allowlist and can hide bundled catalog entries.
 
-The deploy workflow maps the older `anthropic/claude-haiku-4-5` setting to `anthropic/claude-sonnet-4-6` because OpenClaw 2026.6.1 does not expose that Haiku slug through the Anthropic API catalog.
+The default model is `anthropic/claude-haiku-4-5`. Haiku 4.5 is the low-cost Claude default for routine Telegram and VPS operations.
 
-Kimi/Moonshot is the default primary model via `moonshot/kimi-k2.6`. Claude Sonnet remains configured as the fallback so the assistant can still answer if the Moonshot key is missing, rate-limited, or invalid.
+The generated config intentionally sets no automatic fallback to Claude Sonnet. This prevents routine failures or provider auth issues from silently escalating to a more expensive model.
 
 Moonshot and Kimi Coding are separate OpenClaw providers. Use `MOONSHOT_API_KEY` for `moonshot/kimi-k2.6`; use `KIMI_API_KEY` only for `kimi/kimi-for-coding` or Kimi-specific search/coding features.
 
@@ -116,7 +116,7 @@ Telegram streaming is disabled in the generated config because progress drafts c
 
 Telegram DM policy is generated as `open` with `allowFrom: ["*"]` to avoid OpenClaw Telegram builds that silently drop normal DM text when `dmPolicy: "allowlist"` is used. Agent routing remains pinned to the numeric Telegram user ID from `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 
-Agent context is capped at `100000` tokens and compaction sets `agents.defaults.compaction.reserveTokensFloor` to `20000` so short Telegram turns do not fail with an auto-compaction recovery error after the session has been mapped.
+Agent context is capped at `32000` tokens and compaction sets `agents.defaults.compaction.reserveTokensFloor` to `6000`. Keep this small enough for cheap routine Telegram turns; raise it only for deliberate long-context work.
 
 ## Health And Logs
 

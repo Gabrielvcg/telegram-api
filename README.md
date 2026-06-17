@@ -21,14 +21,14 @@ Telegram text/audio
 - Gateway UI/API: `127.0.0.1:18789`
 - Health: `http://127.0.0.1:18789/healthz`
 - Readiness: `http://127.0.0.1:18789/readyz`
-- Default model: Kimi through Moonshot, with Claude Sonnet as fallback.
+- Default model: Claude Haiku 4.5, with no automatic fallback to a more expensive model.
 - Anthropic model metadata is resolved through OpenClaw's bundled provider catalog, and the generated config does not set an agent model allowlist.
 - Host access is intentionally enabled: OpenClaw runs privileged, can use the Docker socket, and can inspect the host filesystem through `/host`.
 - The host Docker CLI is mounted into the container as `docker` and `docker-compose`.
 - Telegram direct-message routing is pinned to `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 - Voice notes are handled by OpenClaw media audio understanding.
 - Telegram streaming is disabled by default so the chat receives final answers reliably instead of progress drafts.
-- Agent context is capped at 100k tokens and compaction reserves 20k tokens to avoid failed auto-compaction turns in Telegram sessions.
+- Agent context is capped at 32k tokens and compaction reserves 6k tokens to keep routine Telegram turns cheap.
 
 ## Local Files
 
@@ -49,14 +49,13 @@ Required variables:
 - `VPS_USER`
 - `VPS_DEPLOY_PATH` (recommended: `/opt/openclaw-assistant`)
 - `OPENCLAW_TELEGRAM_ALLOW_FROM` (your numeric Telegram user ID)
-- `OPENCLAW_MODEL` (default: `moonshot/kimi-k2.6`)
+- `OPENCLAW_MODEL` (default: `anthropic/claude-haiku-4-5`)
 
 Required secrets:
 
 - `VPS_SSH_KEY`
 - `TELEGRAM_BOT_TOKEN`
 - `ANTHROPIC_API_KEY`
-- `MOONSHOT_API_KEY` if Kimi/Moonshot should be the primary model.
 
 Recommended secret:
 
@@ -65,6 +64,7 @@ Recommended secret:
 Optional secret:
 
 - `OPENAI_API_KEY` if you later enable OpenAI/Codex runtimes.
+- `MOONSHOT_API_KEY` if you later enable Kimi/Moonshot models.
 - `KIMI_API_KEY` if you later use Kimi Coding or Kimi search features that require that separate provider key.
 
 Legacy variables from the old Python bot can stay in the GitHub environment; the new workflow ignores them.
