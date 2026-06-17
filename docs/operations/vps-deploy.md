@@ -116,7 +116,9 @@ Telegram streaming is disabled in the generated config because progress drafts c
 
 Telegram DM policy is generated as `open` with `allowFrom: ["*"]` to avoid OpenClaw Telegram builds that silently drop normal DM text when `dmPolicy: "allowlist"` is used. Agent routing remains pinned to the numeric Telegram user ID from `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 
-Agent context is capped at `32000` tokens and compaction sets `agents.defaults.compaction.reserveTokensFloor` to `6000`. Keep this small enough for cheap routine Telegram turns; raise it only for deliberate long-context work.
+Routine Telegram runs use OpenClaw `tools.codeMode` so the model sees the shell-oriented `exec`/`wait` surface instead of every bundled tool schema. This keeps Docker and VPS work available while reducing routine prompt overhead.
+
+Agent context is capped at `24000` tokens, bootstrap context is trimmed to `8000` total characters, startup context is disabled, and compaction sets `agents.defaults.compaction.reserveTokensFloor` to `4000`. Keep these values small for cheap routine Telegram turns; raise them only for deliberate long-context work.
 
 ## Health And Logs
 

@@ -99,9 +99,15 @@ jobs:
                 },
                 workspace: "~/.openclaw/workspace",
                 thinkingDefault: "low",
-                contextTokens: 32000,
+                contextInjection: "continuation-skip",
+                bootstrapMaxChars: 6000,
+                bootstrapTotalMaxChars: 8000,
+                startupContext: {
+                  enabled: false
+                },
+                contextTokens: 24000,
                 compaction: {
-                  reserveTokensFloor: 6000
+                  reserveTokensFloor: 4000
                 },
                 maxConcurrent: 1,
                 timeoutSeconds: 1800,
@@ -143,6 +149,9 @@ jobs:
               }
             },
             tools: {
+              codeMode: {
+                enabled: true
+              },
               media: {
                 audio: {
                   enabled: false,

@@ -28,7 +28,8 @@ Telegram text/audio
 - Telegram direct-message routing is pinned to `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 - Voice notes are handled by OpenClaw media audio understanding.
 - Telegram streaming is disabled by default so the chat receives final answers reliably instead of progress drafts.
-- Agent context is capped at 32k tokens and compaction reserves 6k tokens to keep routine Telegram turns cheap.
+- Routine Telegram runs use OpenClaw code mode so the model sees the shell-oriented tool surface instead of every bundled tool schema.
+- Agent context is capped at 24k tokens, bootstrap context is trimmed, and compaction reserves 4k tokens to keep routine Telegram turns cheap.
 
 ## Local Files
 
