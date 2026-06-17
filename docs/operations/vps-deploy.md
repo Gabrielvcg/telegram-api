@@ -73,7 +73,7 @@ Existing `config/openclaw.json` is backed up under `backups/` and then replaced 
 
 Anthropic model metadata is left to OpenClaw's bundled provider catalog. Do not add a manual `models.providers.anthropic.models` block unless the runtime schema explicitly requires it, because an incorrect custom model row can make OpenClaw route Claude through the OpenAI Responses API. The generated config also avoids `agents.defaults.models` for Claude aliases because that field acts as a model allowlist and can hide bundled catalog entries.
 
-The default model is `anthropic/claude-haiku-4-5`. Haiku 4.5 is the low-cost Claude default for routine Telegram and VPS operations.
+The default model is `anthropic/claude-haiku-4-5` with `thinkingDefault: "off"`. Haiku 4.5 is the low-cost Claude default for routine Telegram and VPS operations.
 
 The generated config intentionally sets no automatic fallback to Claude Sonnet. This prevents routine failures or provider auth issues from silently escalating to a more expensive model.
 
@@ -113,6 +113,8 @@ tar -czf backups/openclaw-host-access-$(date +%Y%m%d-%H%M%S).tgz config workspac
 ```
 
 Telegram streaming is disabled in the generated config because progress drafts can occasionally fail to finalize in Telegram. The default delivery mode favors receiving the final answer reliably over live progress labels.
+
+Telegram table markdown and message edit/delete actions are disabled in the generated config to favor plain text replies in Telegram Web. If Telegram mobile works but Telegram Web shows unsupported-message placeholders, keep these settings conservative before enabling richer output again.
 
 Telegram DM policy is generated as `open` with `allowFrom: ["*"]` to avoid OpenClaw Telegram builds that silently drop normal DM text when `dmPolicy: "allowlist"` is used. Agent routing remains pinned to the numeric Telegram user ID from `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 

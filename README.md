@@ -21,13 +21,14 @@ Telegram text/audio
 - Gateway UI/API: `127.0.0.1:18789`
 - Health: `http://127.0.0.1:18789/healthz`
 - Readiness: `http://127.0.0.1:18789/readyz`
-- Default model: Claude Haiku 4.5, with no automatic fallback to a more expensive model.
+- Default model: Claude Haiku 4.5 with thinking off and no automatic fallback to a more expensive model.
 - Anthropic model metadata is resolved through OpenClaw's bundled provider catalog, and the generated config does not set an agent model allowlist.
 - Host access is intentionally enabled: OpenClaw runs privileged, can use the Docker socket, and can inspect the host filesystem through `/host`.
 - The host Docker CLI is mounted into the container as `docker` and `docker-compose`.
 - Telegram direct-message routing is pinned to `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 - Voice notes are handled by OpenClaw media audio understanding.
 - Telegram streaming is disabled by default so the chat receives final answers reliably instead of progress drafts.
+- Telegram table markdown and edit/delete actions are disabled to favor plain text replies in Telegram Web.
 - Routine Telegram runs use OpenClaw code mode so the model sees the shell-oriented tool surface instead of every bundled tool schema.
 - Agent context is capped at 24k tokens, bootstrap context is trimmed, and compaction reserves 4k tokens to keep routine Telegram turns cheap.
 
