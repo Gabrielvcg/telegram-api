@@ -27,6 +27,8 @@ jobs:
       - name: Build deploy bundle
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENCLAW_GATEWAY_TOKEN: ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
           OPENCLAW_IMAGE: ${{ vars.OPENCLAW_IMAGE }}
@@ -54,8 +56,10 @@ jobs:
           TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
           OPENCLAW_TELEGRAM_ALLOW_FROM=$allow_from
           ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
+          KIMI_API_KEY=$KIMI_API_KEY
+          MOONSHOT_API_KEY=$MOONSHOT_API_KEY
           OPENAI_API_KEY=$OPENAI_API_KEY
-          OPENCLAW_MODEL=${OPENCLAW_MODEL:-anthropic/claude-sonnet-4-6}
+          OPENCLAW_MODEL=${OPENCLAW_MODEL:-moonshot/kimi-k2.6}
           EOF
 
           node <<'NODE'
@@ -70,11 +74,12 @@ jobs:
           const allowFrom = splitList(process.env.OPENCLAW_TELEGRAM_ALLOW_FROM || process.env.LEGACY_ALLOWED_USER_IDS);
           const ownerAllowFrom = allowFrom.map((id) => id.startsWith("telegram:") ? id : `telegram:${id}`);
           const telegramPeerId = allowFrom[0];
-          const requestedModel = process.env.OPENCLAW_MODEL || "anthropic/claude-sonnet-4-6";
+          const requestedModel = process.env.OPENCLAW_MODEL || "moonshot/kimi-k2.6";
           const unsupportedModelOverrides = {
             "anthropic/claude-haiku-4-5": "anthropic/claude-sonnet-4-6"
           };
           const model = unsupportedModelOverrides[requestedModel] || requestedModel;
+          const fallbackModels = ["anthropic/claude-sonnet-4-6"].filter((fallback) => fallback !== model);
 
           const config = {
             logging: { level: "info" },
@@ -93,7 +98,10 @@ jobs:
             },
             agents: {
               defaults: {
-                model: { primary: model },
+                model: {
+                  primary: model,
+                  fallbacks: fallbackModels
+                },
                 workspace: "~/.openclaw/workspace",
                 thinkingDefault: "low",
                 contextTokens: 100000,
@@ -186,10 +194,23 @@ jobs:
               -o StrictHostKeyChecking=accept-new \
               "$VPS_USER@$VPS_HOST" "
               set -eu
-              mkdir -p '$VPS_DEPLOY_PATH' '$VPS_DEPLOY_PATH/config' '$VPS_DEPLOY_PATH/workspace' '$VPS_DEPLOY_PATH/auth' '$VPS_DEPLOY_PATH/backups'
+              mkdir -p '$VPS_DEPLOY_PATH' '$VPS_DEPLOY_PATH/config' '$VPS_DEPLOY_PATH/workspace' '$VPS_DEPLOY_PATH/auth' '$VPS_DEPLOY_PATH/backups' '$VPS_DEPLOY_PATH/tools/cli-plugins'
               cd '$VPS_DEPLOY_PATH'
               tar -xzf -
               mv docker-compose.prod.yml docker-compose.yml
+              docker_path=\$(command -v docker || true)
+              if [ -n \"\$docker_path\" ]; then
+                cp \"\$docker_path\" tools/docker
+                chmod 755 tools/docker
+              fi
+              for compose_path in /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/libexec/docker/cli-plugins/docker-compose /usr/lib/docker/cli-plugins/docker-compose /usr/libexec/docker/cli-plugins/docker-compose; do
+                if [ -x \"\$compose_path\" ]; then
+                  cp \"\$compose_path\" tools/cli-plugins/docker-compose
+                  cp \"\$compose_path\" tools/docker-compose
+                  chmod 755 tools/cli-plugins/docker-compose tools/docker-compose
+                  break
+                fi
+              done
 
               if grep -q '^OPENCLAW_GATEWAY_TOKEN=__PRESERVE_OR_GENERATE__$' .env.deploy; then
                 existing_token=''

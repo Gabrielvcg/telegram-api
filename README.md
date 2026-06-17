@@ -21,7 +21,9 @@ Telegram text/audio
 - Gateway UI/API: `127.0.0.1:18789`
 - Health: `http://127.0.0.1:18789/healthz`
 - Readiness: `http://127.0.0.1:18789/readyz`
+- Default model: Kimi through Moonshot, with Claude Sonnet as fallback.
 - Anthropic model metadata is resolved through OpenClaw's bundled provider catalog, and the generated config does not set an agent model allowlist.
+- Host access is intentionally enabled: OpenClaw runs privileged, can use the Docker socket, and can inspect the host filesystem through `/host`.
 - Telegram direct-message routing is pinned to `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 - Voice notes are handled by OpenClaw media audio understanding.
 - Telegram streaming is disabled by default so the chat receives final answers reliably instead of progress drafts.
@@ -46,13 +48,14 @@ Required variables:
 - `VPS_USER`
 - `VPS_DEPLOY_PATH` (recommended: `/opt/openclaw-assistant`)
 - `OPENCLAW_TELEGRAM_ALLOW_FROM` (your numeric Telegram user ID)
-- `OPENCLAW_MODEL` (default: `anthropic/claude-sonnet-4-6`)
+- `OPENCLAW_MODEL` (default: `moonshot/kimi-k2.6`)
 
 Required secrets:
 
 - `VPS_SSH_KEY`
 - `TELEGRAM_BOT_TOKEN`
 - `ANTHROPIC_API_KEY`
+- `MOONSHOT_API_KEY` if Kimi/Moonshot should be the primary model.
 
 Recommended secret:
 
@@ -61,6 +64,7 @@ Recommended secret:
 Optional secret:
 
 - `OPENAI_API_KEY` if you later enable OpenAI/Codex runtimes.
+- `KIMI_API_KEY` if you later use Kimi Coding or Kimi search features that require that separate provider key.
 
 Legacy variables from the old Python bot can stay in the GitHub environment; the new workflow ignores them.
 
@@ -87,6 +91,13 @@ curl -fsS http://127.0.0.1:18789/healthz
 curl -fsS http://127.0.0.1:18789/readyz
 ```
 
+Inside the OpenClaw container, the agent should also be able to run:
+
+```bash
+docker ps
+ls /host
+```
+
 If your `VPS_DEPLOY_PATH` still points to the old path, use that path instead.
 
 ## Telegram Smoke Test
@@ -105,5 +116,4 @@ Voice notes are disabled by default to avoid expensive accidental transcription/
 - The Gateway port is bound to `127.0.0.1`, not public internet.
 - Telegram DM policy uses `open` as an OpenClaw Telegram workaround, but agent routing is pinned to the numeric user ID in `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 - The OpenClaw workspace is persistent and private. Treat it as sensitive.
-- Do not mount the whole host filesystem until the basic Telegram + workspace flow is proven.
-- Host/Docker access should be added deliberately with a specific policy and rollback plan.
+- The container has full host-level access by design. Anyone who can control the Telegram allowlisted agent can effectively control Docker and inspect or modify the VPS through `/host`.

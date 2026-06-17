@@ -42,7 +42,7 @@ Variables:
 - `VPS_USER`: SSH user used for deployment.
 - `VPS_DEPLOY_PATH`: recommended `/opt/openclaw-assistant`.
 - `OPENCLAW_TELEGRAM_ALLOW_FROM`: Gabriel's numeric Telegram user ID.
-- `OPENCLAW_MODEL`: default model, recommended `anthropic/claude-sonnet-4-6`.
+- `OPENCLAW_MODEL`: default model, recommended `moonshot/kimi-k2.6` for cheaper day-to-day use.
 - `OPENCLAW_IMAGE`: optional image override, default `ghcr.io/openclaw/openclaw:latest`.
 
 Secrets:
@@ -50,8 +50,10 @@ Secrets:
 - `VPS_SSH_KEY`: private SSH key with VPS access.
 - `TELEGRAM_BOT_TOKEN`: BotFather token.
 - `ANTHROPIC_API_KEY`: Anthropic provider key.
+- `MOONSHOT_API_KEY`: Moonshot provider key for Kimi models.
 - `OPENCLAW_GATEWAY_TOKEN`: recommended stable Gateway UI/API token.
 - `OPENAI_API_KEY`: optional for OpenAI/Codex runtimes.
+- `KIMI_API_KEY`: optional separate Kimi Coding or Kimi search key. It is not interchangeable with the Moonshot provider key.
 
 If `OPENCLAW_GATEWAY_TOKEN` is missing, the deploy workflow generates or preserves one on the VPS. Add the secret later if you want a stable known value from GitHub.
 
@@ -62,7 +64,7 @@ On every push to `main`, or on manual workflow dispatch:
 1. The workflow creates `.env.deploy`.
 2. The workflow creates `openclaw.json.deploy`.
 3. The bundle is copied over SSH.
-4. The VPS creates persistent folders.
+4. The VPS creates persistent folders and copies the host Docker CLI into `tools/`.
 5. `docker compose pull` downloads the OpenClaw image.
 6. `docker compose up -d` starts the Gateway.
 7. The workflow verifies `/healthz`.
@@ -72,6 +74,42 @@ Existing `config/openclaw.json` is backed up under `backups/` and then replaced 
 Anthropic model metadata is left to OpenClaw's bundled provider catalog. Do not add a manual `models.providers.anthropic.models` block unless the runtime schema explicitly requires it, because an incorrect custom model row can make OpenClaw route Claude through the OpenAI Responses API. The generated config also avoids `agents.defaults.models` for Claude aliases because that field acts as a model allowlist and can hide bundled catalog entries.
 
 The deploy workflow maps the older `anthropic/claude-haiku-4-5` setting to `anthropic/claude-sonnet-4-6` because OpenClaw 2026.6.1 does not expose that Haiku slug through the Anthropic API catalog.
+
+Kimi/Moonshot is the default primary model via `moonshot/kimi-k2.6`. Claude Sonnet remains configured as the fallback so the assistant can still answer if the Moonshot key is missing, rate-limited, or invalid.
+
+Moonshot and Kimi Coding are separate OpenClaw providers. Use `MOONSHOT_API_KEY` for `moonshot/kimi-k2.6`; use `KIMI_API_KEY` only for `kimi/kimi-for-coding` or Kimi-specific search/coding features.
+
+## Host And Docker Access
+
+The OpenClaw container intentionally has full VPS access:
+
+- `privileged: true`
+- user `0:0`
+- Docker socket mounted at `/var/run/docker.sock`
+- host root mounted read-write at `/host`
+- host Docker CLI copied into `tools/` and mounted at `/opt/host-tools`
+
+This lets the Telegram agent run Docker operations such as:
+
+```bash
+docker ps
+docker compose ps
+ls /host
+```
+
+Rollback is a normal repository revert plus redeploy:
+
+```bash
+git revert <commit-that-enabled-host-access>
+git push origin main
+```
+
+Before risky host operations, create a VPS backup:
+
+```bash
+cd /opt/openclaw-assistant
+tar -czf backups/openclaw-host-access-$(date +%Y%m%d-%H%M%S).tgz config workspace auth .env docker-compose.yml
+```
 
 Telegram streaming is disabled in the generated config because progress drafts can occasionally fail to finalize in Telegram. The default delivery mode favors receiving the final answer reliably over live progress labels.
 
@@ -156,13 +194,11 @@ docker compose down
 
 ## Expanding Access
 
-Start with Telegram + workspace + GitHub. After that works, add host/Docker access deliberately.
+Host/Docker access is now enabled deliberately after the Telegram + workspace baseline was proven.
 
 Recommended order:
 
 1. Workspace project work.
 2. GitHub auth and PR workflows.
 3. Docker commands for specific project folders.
-4. Host-level operations only with explicit backup and confirmation policy.
-
-Do not mount `/` or the Docker socket into the Gateway until the baseline system is proven useful.
+4. Host-level operations with explicit backup for destructive maintenance.
