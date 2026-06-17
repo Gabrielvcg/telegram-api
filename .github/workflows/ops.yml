@@ -122,89 +122,89 @@ jobs:
                 if [ -n "$latest" ] && [ -f "$latest" ]; then
                   echo "--- $latest"
                   node - "$latest" <<'"'"'NODE'"'"'
-const fs = require("fs");
-const file = process.argv[2];
-const secret = /token|apiKey|secret|password|authorization|botToken/i;
-const redact = (value) => JSON.stringify(value, (key, val) => secret.test(key) ? "***REDACTED***" : val);
-const lines = fs.readFileSync(file, "utf8").trim().split(/\n/).filter(Boolean);
-for (const line of lines.slice(-220)) {
-  let item;
-  try {
-    item = JSON.parse(line);
-  } catch {
-    console.log(`! unparsed ${line.slice(0, 240)}`);
-    continue;
-  }
-  const type = item.type || item.event || item.name || item.kind || "entry";
-  const ts = item.timestamp || item.time || item.createdAt || "";
-  const role = item.role || item.message?.role || item.delta?.role || item.data?.role || "";
-  const status = item.status || item.stopReason || item.error?.message || item.message?.stopReason || "";
-  const parts = [];
-  const visit = (value, path = "") => {
-    if (!value || parts.length >= 8) return;
-    if (typeof value === "string") {
-      const text = value.replace(/\s+/g, " ").trim();
-      if (
-        text &&
-        text.length > 2 &&
-        !path.toLowerCase().includes("system") &&
-        !/You are|AGENTS\.md|Global Agents Reference|OpenClaw config schema/.test(text)
-      ) {
-        parts.push(`${path || "text"}=${text.slice(0, 360)}`);
-      }
-      return;
-    }
-    if (Array.isArray(value)) {
-      for (const entry of value.slice(0, 12)) visit(entry, path);
-      return;
-    }
-    if (typeof value === "object") {
-      for (const [key, val] of Object.entries(value)) {
-        if (secret.test(key)) continue;
-        if (/systemPrompt|toolSchemas|projectContext|nonProjectContext|schema/i.test(key)) continue;
-        visit(val, path ? `${path}.${key}` : key);
-      }
-    }
-  };
-  visit(item);
-  const interesting = /dime los contenedores|unsupported|telegram|docker ps|sendMessage|tool|error|assistant|user/i.test(
-    `${type} ${role} ${status} ${parts.join(" ")}`
-  );
-  if (interesting) {
-    console.log([ts, type, role, status].filter(Boolean).join(" | "));
-    if (parts.length) console.log(`  ${parts.join("\n  ")}`);
-    if (!parts.length) console.log(`  ${redact(item).slice(0, 900)}`);
-  }
-}
-NODE
+          const fs = require("fs");
+          const file = process.argv[2];
+          const secret = /token|apiKey|secret|password|authorization|botToken/i;
+          const redact = (value) => JSON.stringify(value, (key, val) => secret.test(key) ? "***REDACTED***" : val);
+          const lines = fs.readFileSync(file, "utf8").trim().split(/\n/).filter(Boolean);
+          for (const line of lines.slice(-220)) {
+            let item;
+            try {
+              item = JSON.parse(line);
+            } catch {
+              console.log(`! unparsed ${line.slice(0, 240)}`);
+              continue;
+            }
+            const type = item.type || item.event || item.name || item.kind || "entry";
+            const ts = item.timestamp || item.time || item.createdAt || "";
+            const role = item.role || item.message?.role || item.delta?.role || item.data?.role || "";
+            const status = item.status || item.stopReason || item.error?.message || item.message?.stopReason || "";
+            const parts = [];
+            const visit = (value, path = "") => {
+              if (!value || parts.length >= 8) return;
+              if (typeof value === "string") {
+                const text = value.replace(/\s+/g, " ").trim();
+                if (
+                  text &&
+                  text.length > 2 &&
+                  !path.toLowerCase().includes("system") &&
+                  !/You are|AGENTS\.md|Global Agents Reference|OpenClaw config schema/.test(text)
+                ) {
+                  parts.push(`${path || "text"}=${text.slice(0, 360)}`);
+                }
+                return;
+              }
+              if (Array.isArray(value)) {
+                for (const entry of value.slice(0, 12)) visit(entry, path);
+                return;
+              }
+              if (typeof value === "object") {
+                for (const [key, val] of Object.entries(value)) {
+                  if (secret.test(key)) continue;
+                  if (/systemPrompt|toolSchemas|projectContext|nonProjectContext|schema/i.test(key)) continue;
+                  visit(val, path ? `${path}.${key}` : key);
+                }
+              }
+            };
+            visit(item);
+            const interesting = /dime los contenedores|unsupported|telegram|docker ps|sendMessage|tool|error|assistant|user/i.test(
+              `${type} ${role} ${status} ${parts.join(" ")}`
+            );
+            if (interesting) {
+              console.log([ts, type, role, status].filter(Boolean).join(" | "));
+              if (parts.length) console.log(`  ${parts.join("\n  ")}`);
+              if (!parts.length) console.log(`  ${redact(item).slice(0, 900)}`);
+            }
+          }
+          NODE
                 fi
                 traj=$(find "$session_dir" -maxdepth 1 -type f -name "*.trajectory.jsonl" -printf "%T@ %p\n" 2>/dev/null | sort -n | tail -n 1 | cut -d" " -f2-)
                 if [ -n "$traj" ] && [ -f "$traj" ]; then
                   echo "--- latest trajectory compact: $traj"
                   node - "$traj" <<'"'"'NODE'"'"'
-const fs = require("fs");
-const file = process.argv[2];
-const secret = /token|apiKey|secret|password|authorization|botToken/i;
-const lines = fs.readFileSync(file, "utf8").trim().split(/\n/).filter(Boolean).slice(-500);
-for (const line of lines) {
-  let item;
-  try {
-    item = JSON.parse(line);
-  } catch {
-    if (/unsupported|telegram|sendMessage|docker|error|exception|failed/i.test(line)) console.log(line.slice(0, 700));
-    continue;
-  }
-  const compact = JSON.stringify(item, (key, val) => {
-    if (secret.test(key)) return "***REDACTED***";
-    if (/systemPrompt|toolSchemas|projectContext|nonProjectContext|schema/i.test(key)) return undefined;
-    if (typeof val === "string" && val.length > 500) return `${val.slice(0, 500)}...`;
-    return val;
-  });
-  if (/unsupported|telegram|sendMessage|docker|runtime\.error|error|exception|failed|tool|exec|stopReason/i.test(compact)) {
-    console.log(compact.slice(0, 1200));
-  }
-}
-NODE
+          const fs = require("fs");
+          const file = process.argv[2];
+          const secret = /token|apiKey|secret|password|authorization|botToken/i;
+          const lines = fs.readFileSync(file, "utf8").trim().split(/\n/).filter(Boolean).slice(-500);
+          for (const line of lines) {
+            let item;
+            try {
+              item = JSON.parse(line);
+            } catch {
+              if (/unsupported|telegram|sendMessage|docker|error|exception|failed/i.test(line)) console.log(line.slice(0, 700));
+              continue;
+            }
+            const compact = JSON.stringify(item, (key, val) => {
+              if (secret.test(key)) return "***REDACTED***";
+              if (/systemPrompt|toolSchemas|projectContext|nonProjectContext|schema/i.test(key)) return undefined;
+              if (typeof val === "string" && val.length > 500) return `${val.slice(0, 500)}...`;
+              return val;
+            });
+            if (/unsupported|telegram|sendMessage|docker|runtime\.error|error|exception|failed|tool|exec|stopReason/i.test(compact)) {
+              console.log(compact.slice(0, 1200));
+            }
+          }
+          NODE
                 fi
               ' || true
               echo
