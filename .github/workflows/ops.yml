@@ -139,15 +139,20 @@ jobs:
               mkdir -p "$backup_dir"
               echo "Backing up current Gabriel session state to $backup_dir"
               docker compose stop openclaw-gateway
-              if [ -d config/agents/gabriel/sessions ]; then
-                cp -a config/agents/gabriel/sessions "$backup_dir/gabriel-sessions"
-                rm -rf config/agents/gabriel/sessions
-              fi
-              if [ -f config/openclaw.generated.json ]; then
-                cp -a config/openclaw.generated.json "$backup_dir/openclaw.generated.json"
-                rm -f config/openclaw.generated.json
-              fi
-              mkdir -p config/agents/gabriel/sessions
+              docker compose run --rm --no-deps --entrypoint sh openclaw-gateway -lc "
+                set -eu
+                mkdir -p '/backups/session-repair-$stamp'
+                if [ -d /home/node/.openclaw/agents/gabriel/sessions ]; then
+                  tar -C /home/node/.openclaw/agents/gabriel -czf '/backups/session-repair-$stamp/gabriel-sessions.tgz' sessions || true
+                  rm -rf /home/node/.openclaw/agents/gabriel/sessions
+                fi
+                if [ -f /home/node/.openclaw/openclaw.generated.json ]; then
+                  cp -a /home/node/.openclaw/openclaw.generated.json '/backups/session-repair-$stamp/openclaw.generated.json' || true
+                  rm -f /home/node/.openclaw/openclaw.generated.json
+                fi
+                mkdir -p /home/node/.openclaw/agents/gabriel/sessions
+                chown -R node:node /home/node/.openclaw/agents/gabriel/sessions || true
+              "
               docker compose up -d openclaw-gateway
               sleep 10
               docker compose ps
