@@ -7,6 +7,7 @@ services:
     env_file:
       - .env
     environment:
+      HOME: /home/node
       NODE_ENV: production
       OPENCLAW_DISABLE_BONJOUR: "1"
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
