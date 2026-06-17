@@ -120,7 +120,9 @@ Telegram DM policy is generated as `open` with `allowFrom: ["*"]` to avoid OpenC
 
 Routine Telegram runs use OpenClaw `tools.codeMode` so the model sees the shell-oriented `exec`/`wait` surface instead of every bundled tool schema. This keeps Docker and VPS work available while reducing routine prompt overhead.
 
-Agent context is capped at `24000` tokens, bootstrap context is trimmed to `8000` total characters, startup context is disabled, and compaction sets `agents.defaults.compaction.reserveTokensFloor` to `4000`. Keep these values small for cheap routine Telegram turns; raise them only for deliberate long-context work.
+Agent context is capped at `40000` tokens, bootstrap context is trimmed to `8000` total characters, startup context is disabled, and compaction sets `agents.defaults.compaction.reserveTokensFloor` to `8000`. OpenClaw may apply a larger internal reserve for some providers; keep enough headroom for shell-tool turns while avoiding long-context costs.
+
+The generated `messages.messagePrefix` reminds the agent that it has root shell and Docker access through `exec`/`wait`. This is intentional because routine VPS questions should inspect the live system instead of telling Gabriel to run commands manually.
 
 ## Health And Logs
 

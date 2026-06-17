@@ -30,7 +30,7 @@ Telegram text/audio
 - Telegram streaming is disabled by default so the chat receives final answers reliably instead of progress drafts.
 - Telegram table markdown and edit/delete actions are disabled to favor plain text replies in Telegram Web.
 - Routine Telegram runs use OpenClaw code mode so the model sees the shell-oriented tool surface instead of every bundled tool schema.
-- Agent context is capped at 24k tokens, bootstrap context is trimmed, and compaction reserves 4k tokens to keep routine Telegram turns cheap.
+- Agent context is capped at 40k tokens, bootstrap context is trimmed, and compaction reserves 8k tokens to keep routine Telegram turns cheap while leaving enough room for shell-tool turns.
 
 ## Local Files
 

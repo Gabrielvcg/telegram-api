@@ -105,9 +105,9 @@ jobs:
                 startupContext: {
                   enabled: false
                 },
-                contextTokens: 24000,
+                contextTokens: 40000,
                 compaction: {
-                  reserveTokensFloor: 4000
+                  reserveTokensFloor: 8000
                 },
                 maxConcurrent: 1,
                 timeoutSeconds: 1800,
@@ -155,6 +155,9 @@ jobs:
                 },
                 groups: {}
               }
+            },
+            messages: {
+              messagePrefix: "Operational note: this agent runs on Gabriel's VPS with root shell access through the exec tool and Docker access through the mounted Docker socket. For host, Docker, CPU, memory, process, filesystem, or service questions, use exec/wait to inspect the live system before answering. Do not say you lack access unless an exec command actually fails; if it fails, quote the relevant error briefly."
             },
             tools: {
               codeMode: {
