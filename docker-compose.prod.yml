@@ -30,6 +30,9 @@ services:
       - ./auth:/home/node/.config/openclaw
       - ./backups:/backups
       - ./tools:/opt/host-tools:ro
+      - ./tools/docker:/usr/local/bin/docker:ro
+      - ./tools/docker-compose:/usr/local/bin/docker-compose:ro
+      - ./tools/cli-plugins:/usr/local/lib/docker/cli-plugins:ro
       - /:/host
       - /var/run/docker.sock:/var/run/docker.sock
     extra_hosts:

@@ -87,7 +87,8 @@ The OpenClaw container intentionally has full VPS access:
 - user `0:0`
 - Docker socket mounted at `/var/run/docker.sock`
 - host root mounted read-write at `/host`
-- host Docker CLI copied into `tools/` and mounted at `/opt/host-tools`
+- host Docker CLI copied into `tools/` and mounted as `/usr/local/bin/docker`
+- Docker Compose plugin copied into `tools/cli-plugins/` and mounted in Docker's standard plugin directory
 
 This lets the Telegram agent run Docker operations such as:
 

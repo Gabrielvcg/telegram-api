@@ -24,6 +24,7 @@ Telegram text/audio
 - Default model: Kimi through Moonshot, with Claude Sonnet as fallback.
 - Anthropic model metadata is resolved through OpenClaw's bundled provider catalog, and the generated config does not set an agent model allowlist.
 - Host access is intentionally enabled: OpenClaw runs privileged, can use the Docker socket, and can inspect the host filesystem through `/host`.
+- The host Docker CLI is mounted into the container as `docker` and `docker-compose`.
 - Telegram direct-message routing is pinned to `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 - Voice notes are handled by OpenClaw media audio understanding.
 - Telegram streaming is disabled by default so the chat receives final answers reliably instead of progress drafts.
