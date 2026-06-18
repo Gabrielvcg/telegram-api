@@ -16,6 +16,7 @@ on:
           - restart
           - ps
           - schema
+          - cli-help
 
 jobs:
   ops:
@@ -322,6 +323,24 @@ jobs:
                 }
                 walk(schema);
               '"'"'' || true
+              ;;
+            cli-help)
+              echo '=== openclaw cli help ==='
+              docker compose exec -T openclaw-gateway sh -lc '
+                for cmd in \
+                  "openclaw --help" \
+                  "openclaw agents --help" \
+                  "openclaw agent --help" \
+                  "openclaw run --help" \
+                  "openclaw ask --help" \
+                  "openclaw chat --help" \
+                  "openclaw sessions --help" \
+                  "openclaw tools --help"
+                do
+                  echo "--- $cmd"
+                  sh -lc "$cmd" 2>&1 | head -n 120 || true
+                done
+              ' || true
               ;;
             *)
               echo "Unknown action: $ops_action"
