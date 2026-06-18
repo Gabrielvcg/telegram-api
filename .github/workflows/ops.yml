@@ -20,6 +20,7 @@ on:
           - agent-test
           - agent-main-test
           - openclaw-source-grep
+          - openclaw-send-snippets
 
 jobs:
   ops:
@@ -424,6 +425,24 @@ jobs:
                 for pattern in sendRichMessage sendMessage deliveryKind parse_mode reply_markup visibleReplies responsePrefix markdown rich text; do
                   echo "--- $pattern"
                   grep -RIn "$pattern" /app/dist 2>/dev/null | head -n 80 || true
+                done
+              ' || true
+              ;;
+            openclaw-send-snippets)
+              echo '=== send snippets ==='
+              docker compose exec -T openclaw-gateway sh -lc '
+                for spec in \
+                  "/app/dist/delivery-ChlR386m.js:1:150" \
+                  "/app/dist/send-DsQJjhVA.js:830:940" \
+                  "/app/dist/actions.runtime-C92dKOPK.js:240:290" \
+                  "/app/dist/bot-deps-B8dbBJ6r.js:420:470"
+                do
+                  file=${spec%%:*}
+                  rest=${spec#*:}
+                  start=${rest%%:*}
+                  end=${rest##*:}
+                  echo "--- $file:$start-$end"
+                  nl -ba "$file" | sed -n "${start},${end}p"
                 done
               ' || true
               ;;
