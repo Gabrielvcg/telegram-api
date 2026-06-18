@@ -17,6 +17,7 @@ on:
           - ps
           - schema
           - cli-help
+          - agent-test
 
 jobs:
   ops:
@@ -340,6 +341,38 @@ jobs:
                   echo "--- $cmd"
                   sh -lc "$cmd" 2>&1 | head -n 120 || true
                 done
+              ' || true
+              ;;
+            agent-test)
+              echo '=== direct docker stats baseline ==='
+              docker compose exec -T openclaw-gateway sh -lc 'docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}" | head -n 20'
+              echo
+              echo '=== OpenClaw agent VPS status test ==='
+              docker compose exec -T openclaw-gateway sh -lc '
+                set -eu
+                out=$(openclaw agent \
+                  --agent gabriel \
+                  --session-key agent:gabriel:selftest-vps-status \
+                  --message "Dime cpu y memoria de los contenedores activos en una frase" \
+                  --thinking off \
+                  --timeout 300 \
+                  --json 2>&1)
+                printf "%s\n" "$out"
+                if printf "%s\n" "$out" | grep -Eiq "no puedo acceder|no tengo acceso|ejecuta en tu vps|emparej"; then
+                  echo "Agent self-test failed: assistant still claims it cannot access the VPS."
+                  exit 1
+                fi
+                if ! printf "%s\n" "$out" | grep -Eiq "cpu|mem|contenedor|container|%|MiB|GiB"; then
+                  echo "Agent self-test failed: reply does not look like container CPU/memory status."
+                  exit 1
+                fi
+              '
+              echo
+              echo '=== self-test session trace ==='
+              docker compose exec -T openclaw-gateway sh -lc '
+                session_dir=/home/node/.openclaw/agents/gabriel/sessions
+                latest=$(find "$session_dir" -maxdepth 1 -type f -name "*.jsonl" ! -name "*.trajectory.jsonl" -printf "%T@ %p\n" 2>/dev/null | sort -n | tail -n 1 | cut -d" " -f2-)
+                [ -n "$latest" ] && [ -f "$latest" ] && tail -n 80 "$latest"
               ' || true
               ;;
             *)
