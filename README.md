@@ -30,6 +30,7 @@ Telegram text/audio
 - Voice notes are handled by OpenClaw media audio understanding.
 - Telegram streaming is disabled by default so the chat receives final answers reliably instead of progress drafts.
 - Telegram table markdown and edit/delete actions are disabled to favor plain text replies in Telegram Web.
+- The container applies a small startup compatibility patch that forces Telegram text replies through the normal Bot API `sendMessage`, because OpenClaw's rich-message transport renders as unsupported in Telegram Web.
 - Routine Telegram runs expose only the direct `exec` tool so VPS status questions use the real shell instead of a JavaScript code-mode bridge.
 - Agent context is capped at 40k tokens, bootstrap context is trimmed, and compaction reserves 8k tokens to keep routine Telegram turns cheap while leaving enough room for shell-tool turns.
 

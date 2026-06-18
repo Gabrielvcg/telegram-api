@@ -116,6 +116,8 @@ Telegram streaming is disabled in the generated config because progress drafts c
 
 Telegram table markdown and message edit/delete actions are disabled in the generated config to favor plain text replies in Telegram Web. If Telegram mobile works but Telegram Web shows unsupported-message placeholders, keep these settings conservative before enabling richer output again.
 
+The container runs `openclaw-patches/patch-telegram-plain-send.mjs` before starting the Gateway. This compatibility patch changes OpenClaw text delivery from Telegram's experimental rich-message API to the normal Bot API `sendMessage`, which Telegram Web can render. It is idempotent and leaves `.orig` backups inside the container filesystem.
+
 Telegram DM policy is generated as `open` with `allowFrom: ["*"]` to avoid OpenClaw Telegram builds that silently drop normal DM text when `dmPolicy: "allowlist"` is used. Agent routing remains pinned to the numeric Telegram user ID from `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 
 Routine Telegram runs expose only the direct `exec` tool. This keeps Docker and VPS work available without the JavaScript code-mode bridge that can make small models answer from memory instead of calling the real shell.

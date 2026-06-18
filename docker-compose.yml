@@ -4,6 +4,12 @@ services:
     container_name: openclaw-gateway
     restart: unless-stopped
     init: true
+    command:
+      - sh
+      - -lc
+      - |
+        node /opt/openclaw-patches/patch-telegram-plain-send.mjs
+        exec node /app/openclaw.mjs gateway
     env_file:
       - .env
     environment:
@@ -29,6 +35,7 @@ services:
       - ./workspace:/home/node/.openclaw/workspace
       - ./auth:/home/node/.config/openclaw
       - ./backups:/backups
+      - ./openclaw-patches:/opt/openclaw-patches:ro
       - ./tools:/opt/host-tools:ro
       - ./tools/docker:/usr/local/bin/docker:ro
       - ./tools/docker-compose:/usr/local/bin/docker-compose:ro

@@ -185,7 +185,7 @@ jobs:
           fs.writeFileSync("openclaw.json.deploy", JSON.stringify(config, null, 2) + "\n");
           NODE
 
-          tar -czf .deploy-bundle.tgz docker-compose.prod.yml .env.deploy openclaw.json.deploy openclaw-workspace/IDENTITY.md openclaw-workspace/USER.md
+          tar -czf .deploy-bundle.tgz docker-compose.prod.yml .env.deploy openclaw.json.deploy openclaw-workspace/IDENTITY.md openclaw-workspace/USER.md openclaw-patches/patch-telegram-plain-send.mjs
 
       - name: Deploy bundle on VPS
         env:
@@ -210,7 +210,7 @@ jobs:
               -o StrictHostKeyChecking=accept-new \
               "$VPS_USER@$VPS_HOST" "
               set -eu
-              mkdir -p '$VPS_DEPLOY_PATH' '$VPS_DEPLOY_PATH/config' '$VPS_DEPLOY_PATH/workspace' '$VPS_DEPLOY_PATH/auth' '$VPS_DEPLOY_PATH/backups' '$VPS_DEPLOY_PATH/tools/cli-plugins'
+              mkdir -p '$VPS_DEPLOY_PATH' '$VPS_DEPLOY_PATH/config' '$VPS_DEPLOY_PATH/workspace' '$VPS_DEPLOY_PATH/auth' '$VPS_DEPLOY_PATH/backups' '$VPS_DEPLOY_PATH/tools/cli-plugins' '$VPS_DEPLOY_PATH/openclaw-patches'
               cd '$VPS_DEPLOY_PATH'
               tar -xzf -
               mv docker-compose.prod.yml docker-compose.yml
