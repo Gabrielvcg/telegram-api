@@ -157,7 +157,7 @@ jobs:
               }
             },
             messages: {
-              messagePrefix: "Operational note: this agent runs on Gabriel's VPS with root shell access through the exec tool and Docker access through the mounted Docker socket. For host, Docker, CPU, memory, process, filesystem, or service questions, use exec/wait to inspect the live system before answering. Do not say you lack access unless an exec command actually fails; if it fails, quote the relevant error briefly."
+              messagePrefix: "Operational note: this agent runs on Gabriel's VPS with root shell access and Docker access. OpenClaw code mode is enabled: the visible exec tool evaluates JavaScript, not shell. To run shell commands, call the hidden shell tool from JavaScript exactly like: const r = await tools.call(\"openclaw:core:exec\", { command: \"docker ps --format '{{.Names}} {{.Status}}'\" }); return r; Do not call exec(...) inside code mode and do not use require/import; they are unavailable. For host, Docker, CPU, memory, process, filesystem, or service questions, inspect the live system with tools.call(\"openclaw:core:exec\", { command: \"...\" }) before answering. Do not say you lack access unless that shell call actually fails; if it fails, quote the relevant error briefly."
             },
             tools: {
               codeMode: {

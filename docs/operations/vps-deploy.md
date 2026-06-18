@@ -122,7 +122,14 @@ Routine Telegram runs use OpenClaw `tools.codeMode` so the model sees the shell-
 
 Agent context is capped at `40000` tokens, bootstrap context is trimmed to `8000` total characters, startup context is disabled, and compaction sets `agents.defaults.compaction.reserveTokensFloor` to `8000`. OpenClaw may apply a larger internal reserve for some providers; keep enough headroom for shell-tool turns while avoiding long-context costs.
 
-The generated `messages.messagePrefix` reminds the agent that it has root shell and Docker access through `exec`/`wait`. This is intentional because routine VPS questions should inspect the live system instead of telling Gabriel to run commands manually.
+The generated `messages.messagePrefix` reminds the agent that it has root shell and Docker access. Because OpenClaw code mode exposes a JavaScript `exec` cell rather than the shell tool directly, the prefix also includes the exact shell bridge pattern:
+
+```javascript
+const r = await tools.call("openclaw:core:exec", { command: "docker ps" });
+return r;
+```
+
+This is intentional because routine VPS questions should inspect the live system instead of telling Gabriel to run commands manually.
 
 ## Health And Logs
 
