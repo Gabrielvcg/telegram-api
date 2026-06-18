@@ -377,8 +377,8 @@ jobs:
               ' || true
               ;;
             agent-main-test)
-              echo '=== workspace identity ==='
-              docker compose exec -T openclaw-gateway sh -lc 'sed -n "1,80p" /home/node/.openclaw/workspace/IDENTITY.md || true'
+              echo '=== workspace bootstrap ==='
+              docker compose exec -T openclaw-gateway sh -lc 'for f in IDENTITY.md USER.md; do echo "--- $f"; sed -n "1,80p" "/home/node/.openclaw/workspace/$f" 2>/dev/null || true; done'
               echo
               echo '=== direct docker stats baseline ==='
               docker compose exec -T openclaw-gateway sh -lc 'docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}" | head -n 20'

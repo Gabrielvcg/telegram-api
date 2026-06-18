@@ -25,7 +25,7 @@ Telegram text/audio
 - Anthropic model metadata is resolved through OpenClaw's bundled provider catalog, and the generated config does not set an agent model allowlist.
 - Host access is intentionally enabled: OpenClaw runs privileged, can use the Docker socket, and can inspect the host filesystem through `/host`.
 - The host Docker CLI is mounted into the container as `docker` and `docker-compose`.
-- The deployed workspace `IDENTITY.md` explicitly tells the agent to call `exec` before answering VPS, Docker, resource, logs, deployment, or security status questions.
+- The deployed workspace bootstrap files explicitly tell the agent to call `exec` before answering VPS, Docker, resource, logs, deployment, or security status questions.
 - Telegram direct-message routing is pinned to `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 - Voice notes are handled by OpenClaw media audio understanding.
 - Telegram streaming is disabled by default so the chat receives final answers reliably instead of progress drafts.

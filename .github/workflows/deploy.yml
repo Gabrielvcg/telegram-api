@@ -185,7 +185,7 @@ jobs:
           fs.writeFileSync("openclaw.json.deploy", JSON.stringify(config, null, 2) + "\n");
           NODE
 
-          tar -czf .deploy-bundle.tgz docker-compose.prod.yml .env.deploy openclaw.json.deploy openclaw-workspace/IDENTITY.md
+          tar -czf .deploy-bundle.tgz docker-compose.prod.yml .env.deploy openclaw.json.deploy openclaw-workspace/IDENTITY.md openclaw-workspace/USER.md
 
       - name: Deploy bundle on VPS
         env:
@@ -244,8 +244,13 @@ jobs:
               if [ -f workspace/IDENTITY.md ]; then
                 cp workspace/IDENTITY.md \"backups/workspace-identity-\$(date +%Y%m%d-%H%M%S).md\"
               fi
+              if [ -f workspace/USER.md ]; then
+                cp workspace/USER.md \"backups/workspace-user-\$(date +%Y%m%d-%H%M%S).md\"
+              fi
               cp openclaw-workspace/IDENTITY.md workspace/IDENTITY.md
+              cp openclaw-workspace/USER.md workspace/USER.md
               chmod 644 workspace/IDENTITY.md || true
+              chmod 644 workspace/USER.md || true
               if [ -f config/openclaw.json ]; then
                 backup_name=\"backups/openclaw-json-\$(date +%Y%m%d-%H%M%S).json\"
                 cp config/openclaw.json \"\$backup_name\"

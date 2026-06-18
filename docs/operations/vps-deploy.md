@@ -120,7 +120,7 @@ Telegram DM policy is generated as `open` with `allowFrom: ["*"]` to avoid OpenC
 
 Routine Telegram runs expose only the direct `exec` tool. This keeps Docker and VPS work available without the JavaScript code-mode bridge that can make small models answer from memory instead of calling the real shell.
 
-Deployment also copies `openclaw-workspace/IDENTITY.md` into the persistent workspace root. Keep it short: OpenClaw injects this bootstrap file into Telegram agent turns, and it should fit inside the runtime bootstrap budget while telling the model to inspect the live VPS with `exec` before answering operational questions.
+Deployment also copies `openclaw-workspace/IDENTITY.md` and `openclaw-workspace/USER.md` into the persistent workspace root. Keep `USER.md` extremely short: current Telegram turns may inject only a tiny bootstrap budget, and the first line must fit while telling the model to inspect the live VPS with `exec` before answering operational questions.
 
 Agent context is capped at `40000` tokens, bootstrap context is trimmed to `8000` total characters, startup context is disabled, and compaction sets `agents.defaults.compaction.reserveTokensFloor` to `8000`. OpenClaw may apply a larger internal reserve for some providers; keep enough headroom for shell-tool turns while avoiding long-context costs.
 
