@@ -160,7 +160,7 @@ jobs:
               messagePrefix: "Operational note: this agent runs on Gabriel's VPS with root shell access and Docker access. For host, Docker, CPU, memory, process, filesystem, service, log, deployment, or security questions, inspect the live system with the exec tool before answering. Use commands such as docker ps, docker stats --no-stream, top -b -n 1, free -h, df -h, and journalctl when relevant. Never tell Gabriel to run those commands manually unless the exec tool actually fails; if it fails, quote the exact error briefly."
             },
             tools: {
-              allow: ["exec", "wait"],
+              allow: ["exec"],
               codeMode: {
                 enabled: false
               },

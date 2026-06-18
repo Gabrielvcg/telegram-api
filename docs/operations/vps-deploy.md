@@ -118,7 +118,7 @@ Telegram table markdown and message edit/delete actions are disabled in the gene
 
 Telegram DM policy is generated as `open` with `allowFrom: ["*"]` to avoid OpenClaw Telegram builds that silently drop normal DM text when `dmPolicy: "allowlist"` is used. Agent routing remains pinned to the numeric Telegram user ID from `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 
-Routine Telegram runs expose only the direct `exec`/`wait` tools. This keeps Docker and VPS work available without the JavaScript code-mode bridge that can make small models answer from memory instead of calling the real shell.
+Routine Telegram runs expose only the direct `exec` tool. This keeps Docker and VPS work available without the JavaScript code-mode bridge that can make small models answer from memory instead of calling the real shell.
 
 Agent context is capped at `40000` tokens, bootstrap context is trimmed to `8000` total characters, startup context is disabled, and compaction sets `agents.defaults.compaction.reserveTokensFloor` to `8000`. OpenClaw may apply a larger internal reserve for some providers; keep enough headroom for shell-tool turns while avoiding long-context costs.
 
