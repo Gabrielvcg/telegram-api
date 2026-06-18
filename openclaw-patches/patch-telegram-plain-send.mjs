@@ -86,19 +86,29 @@ function patchDeliverySender(source) {
 
 function patchDirectTextSender(source, file) {
   if (
+    source.includes("async function sendMessageTelegram(to, text, opts)") &&
     source.includes("api.sendMessage(chatId, chunk.text, messageParams)") &&
     source.includes('operation: "sendMessage",\n\t\t\t\tdeliveryKind: "text"')
   ) {
     return { source };
   }
-  const sendChunkPattern = /const sendTelegramTextChunk = async \(chunk, params\) => \{[\s\S]*?\n\t\t\};\n\t\tconst buildTextParams = \(isLastChunk\) => hasRichThreadParams \|\| isLastChunk && replyMarkup \? \{[\s\S]*?\n\t\t\} : void 0;/;
-  if (!sendChunkPattern.test(source)) return null;
-  let patched = source.replace(sendChunkPattern, sendTextChunkReplacement);
-  const logPattern = /operation: "sendRichMessage",\n\t\t\t\tdeliveryKind: "text",/;
-  if (!logPattern.test(patched)) {
+  const functionMarker = "async function sendMessageTelegram(to, text, opts) {";
+  const functionStart = source.indexOf(functionMarker);
+  if (functionStart === -1) return null;
+  const sendChunkMarker = "\t\tconst sendTelegramTextChunk = async (chunk, params) => {";
+  const textChunksMarker = "\t\tconst sendTelegramTextChunks = async (chunks, context) => {";
+  const sendChunkStart = source.indexOf(sendChunkMarker, functionStart);
+  const textChunksStart = source.indexOf(textChunksMarker, sendChunkStart);
+  if (sendChunkStart === -1 || textChunksStart === -1) {
+    throw new Error(`${file}: text sender markers were not found`);
+  }
+  let patched = `${source.slice(0, sendChunkStart)}\t\t${sendTextChunkReplacement}\n${source.slice(textChunksStart)}`;
+  const logMarker = 'operation: "sendRichMessage",\n\t\t\t\tdeliveryKind: "text",';
+  const logStart = patched.indexOf(logMarker, sendChunkStart);
+  if (logStart === -1) {
     throw new Error(`${file}: text send log marker was not found`);
   }
-  patched = patched.replace(logPattern, 'operation: "sendMessage",\n\t\t\t\tdeliveryKind: "text",');
+  patched = `${patched.slice(0, logStart)}operation: "sendMessage",\n\t\t\t\tdeliveryKind: "text",${patched.slice(logStart + logMarker.length)}`;
   return { source: patched };
 }
 
