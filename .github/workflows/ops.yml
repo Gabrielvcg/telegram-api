@@ -433,7 +433,7 @@ jobs:
               docker compose exec -T openclaw-gateway sh -lc '
                 for spec in \
                   "/app/dist/delivery-ChlR386m.js:1:150" \
-                  "/app/dist/send-DsQJjhVA.js:830:940" \
+                  "/app/dist/send-DsQJjhVA.js:760:940" \
                   "/app/dist/actions.runtime-C92dKOPK.js:240:290" \
                   "/app/dist/bot-deps-B8dbBJ6r.js:420:470"
                 do
