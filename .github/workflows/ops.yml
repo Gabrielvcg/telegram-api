@@ -18,6 +18,7 @@ on:
           - schema
           - cli-help
           - agent-test
+          - agent-main-test
 
 jobs:
   ops:
@@ -374,6 +375,47 @@ jobs:
                 latest=$(find "$session_dir" -maxdepth 1 -type f -name "*.jsonl" ! -name "*.trajectory.jsonl" -printf "%T@ %p\n" 2>/dev/null | sort -n | tail -n 1 | cut -d" " -f2-)
                 [ -n "$latest" ] && [ -f "$latest" ] && tail -n 80 "$latest"
               ' || true
+              ;;
+            agent-main-test)
+              echo '=== workspace identity ==='
+              docker compose exec -T openclaw-gateway sh -lc 'sed -n "1,80p" /home/node/.openclaw/workspace/IDENTITY.md || true'
+              echo
+              echo '=== direct docker stats baseline ==='
+              docker compose exec -T openclaw-gateway sh -lc 'docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}" | head -n 20'
+              echo
+              echo '=== OpenClaw main session VPS status test ==='
+              docker compose exec -T openclaw-gateway sh -lc '
+                set -eu
+                out=$(openclaw agent \
+                  --agent gabriel \
+                  --session-key agent:gabriel:main \
+                  --message "Dime cpu y memoria de los contenedores activos en una frase" \
+                  --thinking off \
+                  --timeout 300 \
+                  --json 2>&1)
+                printf "%s\n" "$out"
+                if printf "%s\n" "$out" | grep -Eiq "no puedo acceder|no tengo acceso|ejecuta en tu vps|emparej"; then
+                  echo "Main-session test failed: assistant still claims it cannot access the VPS."
+                  exit 1
+                fi
+                if ! printf "%s\n" "$out" | grep -Eiq "cpu|mem|contenedor|container|%|MiB|GiB"; then
+                  echo "Main-session test failed: reply does not look like container CPU/memory status."
+                  exit 1
+                fi
+                session_dir=/home/node/.openclaw/agents/gabriel/sessions
+                latest=$(find "$session_dir" -maxdepth 1 -type f -name "*.jsonl" ! -name "*.trajectory.jsonl" -printf "%T@ %p\n" 2>/dev/null | sort -n | tail -n 1 | cut -d" " -f2-)
+                if [ -z "$latest" ] || [ ! -f "$latest" ]; then
+                  echo "Main-session test failed: session file was not written."
+                  exit 1
+                fi
+                echo
+                echo "--- main session tail"
+                tail -n 120 "$latest"
+                if ! tail -n 160 "$latest" | grep -Fq "docker stats --no-stream"; then
+                  echo "Main-session test failed: no docker stats exec call was recorded."
+                  exit 1
+                fi
+              '
               ;;
             *)
               echo "Unknown action: $ops_action"
