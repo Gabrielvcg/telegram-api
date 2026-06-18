@@ -258,7 +258,7 @@ jobs:
               mv openclaw.json.deploy config/openclaw.json
               chmod 600 config/openclaw.json || true
               docker compose pull
-              docker compose up -d --remove-orphans
+              docker compose up -d --remove-orphans --force-recreate
               docker compose ps
               docker compose logs --tail=80 openclaw-gateway || true
               docker image prune -f

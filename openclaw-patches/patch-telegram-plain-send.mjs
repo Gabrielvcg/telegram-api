@@ -31,21 +31,6 @@ const deliveryFunctionReplacement = `async function sendTelegramText(bot, chatId
 //#endregion
 //#region extensions/telegram/src/bot/reply-threading.ts`;
 
-const sendTextChunkReplacement = `const sendTelegramTextChunk = async (chunk, params) => {
-\t\t\tconst messageParams = {
-\t\t\t\t...params,
-\t\t\t\t...(opts.silent === true ? { disable_notification: true } : {})
-\t\t\t};
-\t\t\treturn {
-\t\t\t\tresult: await requestWithChatNotFound(() => api.sendMessage(chatId, chunk.text, messageParams), "message"),
-\t\t\t\tacceptedParams: params
-\t\t\t};
-\t\t};
-\t\tconst buildTextParams = (isLastChunk) => hasThreadParams || isLastChunk && replyMarkup ? {
-\t\t\t...threadParams,
-\t\t\t...(isLastChunk && replyMarkup ? { reply_markup: replyMarkup } : {})
-\t\t} : void 0;`;
-
 function listJsFiles(dir) {
   const entries = readdirSync(dir, { withFileTypes: true });
   const files = [];
@@ -58,6 +43,25 @@ function listJsFiles(dir) {
     if (entry.isFile() && entry.name.endsWith(".js")) files.push(fullPath);
   }
   return files;
+}
+
+function buildSendTextChunkReplacement(indent) {
+  const inner = `${indent}\t`;
+  const deeper = `${indent}\t\t`;
+  return `${indent}const sendTelegramTextChunk = async (chunk, params) => {
+${inner}const messageParams = {
+${deeper}...params,
+${deeper}...(opts.silent === true ? { disable_notification: true } : {})
+${inner}};
+${inner}return {
+${deeper}result: await requestWithChatNotFound(() => api.sendMessage(chatId, chunk.text, messageParams), "message"),
+${deeper}acceptedParams: params
+${inner}};
+${indent}};
+${indent}const buildTextParams = (isLastChunk) => hasThreadParams || isLastChunk && replyMarkup ? {
+${inner}...threadParams,
+${inner}...(isLastChunk && replyMarkup ? { reply_markup: replyMarkup } : {})
+${indent}} : void 0;`;
 }
 
 function patchFile(file, patcher) {
@@ -95,20 +99,23 @@ function patchDirectTextSender(source, file) {
   const functionMarker = "async function sendMessageTelegram(to, text, opts) {";
   const functionStart = source.indexOf(functionMarker);
   if (functionStart === -1) return null;
-  const sendChunkMarker = "\t\tconst sendTelegramTextChunk = async (chunk, params) => {";
-  const textChunksMarker = "\t\tconst sendTelegramTextChunks = async (chunks, context) => {";
-  const sendChunkStart = source.indexOf(sendChunkMarker, functionStart);
-  const textChunksStart = source.indexOf(textChunksMarker, sendChunkStart);
-  if (sendChunkStart === -1 || textChunksStart === -1) {
+  const sendChunkNeedle = "const sendTelegramTextChunk = async (chunk, params) => {";
+  const textChunksNeedle = "const sendTelegramTextChunks = async (chunks, context) => {";
+  const sendChunkNeedleStart = source.indexOf(sendChunkNeedle, functionStart);
+  const textChunksNeedleStart = source.indexOf(textChunksNeedle, sendChunkNeedleStart);
+  if (sendChunkNeedleStart === -1 || textChunksNeedleStart === -1) {
     throw new Error(`${file}: text sender markers were not found`);
   }
-  let patched = `${source.slice(0, sendChunkStart)}\t\t${sendTextChunkReplacement}\n${source.slice(textChunksStart)}`;
-  const logMarker = 'operation: "sendRichMessage",\n\t\t\t\tdeliveryKind: "text",';
-  const logStart = patched.indexOf(logMarker, sendChunkStart);
+  const sendChunkLineStart = source.lastIndexOf("\n", sendChunkNeedleStart) + 1;
+  const textChunksLineStart = source.lastIndexOf("\n", textChunksNeedleStart) + 1;
+  const indent = source.slice(sendChunkLineStart, sendChunkNeedleStart);
+  let patched = `${source.slice(0, sendChunkLineStart)}${buildSendTextChunkReplacement(indent)}\n${source.slice(textChunksLineStart)}`;
+  const logMarker = 'operation: "sendRichMessage"';
+  const logStart = patched.indexOf(logMarker, sendChunkLineStart);
   if (logStart === -1) {
     throw new Error(`${file}: text send log marker was not found`);
   }
-  patched = `${patched.slice(0, logStart)}operation: "sendMessage",\n\t\t\t\tdeliveryKind: "text",${patched.slice(logStart + logMarker.length)}`;
+  patched = `${patched.slice(0, logStart)}operation: "sendMessage"${patched.slice(logStart + logMarker.length)}`;
   return { source: patched };
 }
 

@@ -66,7 +66,7 @@ On every push to `main`, or on manual workflow dispatch:
 3. The bundle is copied over SSH.
 4. The VPS creates persistent folders and copies the host Docker CLI into `tools/`.
 5. `docker compose pull` downloads the OpenClaw image.
-6. `docker compose up -d` starts the Gateway.
+6. `docker compose up -d --force-recreate` starts the Gateway and reruns the startup patch.
 7. The workflow verifies `/healthz`.
 
 Existing `config/openclaw.json` is backed up under `backups/` and then replaced by the generated config so deploys keep the runtime deterministic.
