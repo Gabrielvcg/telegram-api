@@ -118,18 +118,11 @@ Telegram table markdown and message edit/delete actions are disabled in the gene
 
 Telegram DM policy is generated as `open` with `allowFrom: ["*"]` to avoid OpenClaw Telegram builds that silently drop normal DM text when `dmPolicy: "allowlist"` is used. Agent routing remains pinned to the numeric Telegram user ID from `OPENCLAW_TELEGRAM_ALLOW_FROM`.
 
-Routine Telegram runs use OpenClaw `tools.codeMode` so the model sees the shell-oriented `exec`/`wait` surface instead of every bundled tool schema. This keeps Docker and VPS work available while reducing routine prompt overhead.
+Routine Telegram runs expose only the direct `exec`/`wait` tools. This keeps Docker and VPS work available without the JavaScript code-mode bridge that can make small models answer from memory instead of calling the real shell.
 
 Agent context is capped at `40000` tokens, bootstrap context is trimmed to `8000` total characters, startup context is disabled, and compaction sets `agents.defaults.compaction.reserveTokensFloor` to `8000`. OpenClaw may apply a larger internal reserve for some providers; keep enough headroom for shell-tool turns while avoiding long-context costs.
 
-The generated `messages.messagePrefix` reminds the agent that it has root shell and Docker access. Because OpenClaw code mode exposes a JavaScript `exec` cell rather than the shell tool directly, the prefix also includes the exact shell bridge pattern:
-
-```javascript
-const r = await tools.call("openclaw:core:exec", { command: "docker ps" });
-return r;
-```
-
-This is intentional because routine VPS questions should inspect the live system instead of telling Gabriel to run commands manually.
+The generated `messages.messagePrefix` reminds the agent that it has root shell and Docker access. This is intentional because routine VPS questions should inspect the live system instead of telling Gabriel to run commands manually.
 
 ## Health And Logs
 
